@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionale Cappe</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏭 Gestionale Cappe</h1>
+            <p class="subtitle">Sistema di gestione inventario cappe aspirazione</p>
+        </header>
+
+        <div class="toolbar">
+            <button id="btnAggiungi" class="btn btn-primary">➕ Aggiungi Cappa</button>
+            <button id="btnExport" class="btn btn-success">📊 Esporta Excel</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Cerca per matricola, modello, sede...">
+            </div>
+        </div>
+
+        <!-- Form Aggiungi/Modifica -->
+        <div id="formModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="formTitle">Aggiungi Nuova Cappa</h2>
+                <form id="cappaForm">
+                    <input type="hidden" id="cappaId">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="inventario">Inventario *</label>
+                            <input type="text" id="inventario" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipologia">Tipologia *</label>
+                            <select id="tipologia" required onchange="toggleAltroInput(this)">
+                                <option value="">Seleziona...</option>
+                                <option value="Cappa biologica">Cappa biologica</option>
+                                <option value="Cappa sterile">Cappa sterile</option>
+                                <option value="Cappa chimica">Cappa chimica</option>
+                                <option value="Cappa aspirante">Cappa aspirante</option>
+                                <option value="Armadio">Armadio</option>
+                                <option value="Altro">Altro</option>
+                            </select>
+                            <input type="text" id="tipologiaAltro" placeholder="Specifica tipologia..." style="display: none; margin-top: 8px;" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="matricola">Matricola *</label>
+                            <input type="text" id="matricola" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="produttore">Produttore *</label>
+                            <input type="text" id="produttore" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="modello">Modello *</label>
+                            <input type="text" id="modello" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sede">Sede *</label>
+                            <input type="text" id="sede" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="reparto">Reparto *</label>
+                            <input type="text" id="reparto" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="locale">Locale *</label>
+                            <input type="text" id="locale" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dataManutenzione">Data Manutenzione</label>
+                            <input type="date" id="dataManutenzione">
+                        </div>
+                        <div class="form-group">
+                            <label for="dataProssimaManutenzione">Data Prossima Manutenzione</label>
+                            <input type="date" id="dataProssimaManutenzione">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Salva</button>
+                        <button type="button" class="btn btn-secondary" id="btnAnnulla">❌ Annulla</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabella Cappe -->
+        <div class="table-container">
+            <table id="cappeTable">
+                <thead>
+                    <tr>
+                        <th>Inventario</th>
+                        <th>Tipologia</th>
+                        <th>Matricola</th>
+                        <th>Produttore</th>
+                        <th>Modello</th>
+                        <th>Sede</th>
+                        <th>Reparto</th>
+                        <th>Locale</th>
+                        <th>Ult. Manutenzione</th>
+                        <th>Pross. Manutenzione</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="cappeTableBody">
+                    <tr>
+                        <td colspan="11" class="loading">Caricamento dati...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="stats" class="stats">
+            <div class="stat-card">
+                <h3>Totale Cappe</h3>
+                <p id="totalCappe">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Manutenzioni Scadute</h3>
+                <p id="manutenzioniScadute">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Manutenzioni Prossime (30gg)</h3>
+                <p id="manutenzioniProssime">0</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
