@@ -102,6 +102,17 @@ header h1 {
     box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
 }
 
+.btn-warning {
+    background: #ffc107;
+    color: #333;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+}
+
 .btn-secondary {
     background: #6c757d;
     color: white;
@@ -386,6 +397,39 @@ tbody tr:hover {
 .notification.warning {
     background: #ffc107;
     color: #333;
+}
+
+/* Import instructions */
+.import-instructions {
+    background: #f8f9ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    margin: 15px 0;
+}
+
+.import-instructions h3 {
+    color: #667eea;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.import-instructions ol {
+    margin-left: 20px;
+}
+
+.import-instructions li {
+    margin: 8px 0;
+}
+
+.import-instructions ul {
+    margin-left: 20px;
+    margin-top: 5px;
+}
+
+.import-instructions ul li {
+    margin: 3px 0;
+    font-size: 0.9em;
 }
 
 /* Status indicators */

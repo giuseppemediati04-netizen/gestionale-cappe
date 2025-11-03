@@ -5,7 +5,7 @@ const path = require('path');
 const XLSX = require('xlsx');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -206,6 +206,131 @@ app.get('/api/cappe/export/excel', (req, res) => {
             res.send(buffer);
         }
     });
+});
+
+// POST - Import Excel
+app.post('/api/cappe/import/excel', express.raw({ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', limit: '10mb' }), (req, res) => {
+    try {
+        const workbook = XLSX.read(req.body, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        const mode = req.query.mode || 'add'; // 'add' o 'replace'
+        
+        let inserted = 0;
+        let updated = 0;
+        let skipped = 0;
+        let errors = [];
+
+        const processRow = (index) => {
+            if (index >= data.length) {
+                return res.json({
+                    message: 'Importazione completata',
+                    inserted,
+                    updated,
+                    skipped,
+                    errors: errors.length > 0 ? errors : undefined
+                });
+            }
+
+            const row = data[index];
+            
+            // Validazione campi obbligatori
+            if (!row.Inventario || !row.Tipologia || !row.Matricola || !row.Produttore || 
+                !row.Modello || !row.Sede || !row.Reparto || !row.Locale) {
+                errors.push(`Riga ${index + 2}: campi obbligatori mancanti`);
+                skipped++;
+                return processRow(index + 1);
+            }
+
+            // Converti date formato italiano (gg/mm/aaaa) in ISO (aaaa-mm-gg)
+            const convertDate = (dateStr) => {
+                if (!dateStr) return null;
+                if (typeof dateStr === 'number') {
+                    // Excel date serial number
+                    const date = XLSX.SSF.parse_date_code(dateStr);
+                    return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+                }
+                if (typeof dateStr === 'string') {
+                    // Formato gg/mm/aaaa
+                    const parts = dateStr.split('/');
+                    if (parts.length === 3) {
+                        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    }
+                }
+                return null;
+            };
+
+            const dataManutenzione = convertDate(row['Data Manutenzione']);
+            const dataProssimaManutenzione = convertDate(row['Data Prossima Manutenzione']);
+
+            // Verifica se la matricola esiste già
+            db.get('SELECT id FROM cappe WHERE matricola = ?', [row.Matricola], (err, existing) => {
+                if (err) {
+                    errors.push(`Riga ${index + 2}: ${err.message}`);
+                    skipped++;
+                    return processRow(index + 1);
+                }
+
+                if (existing) {
+                    if (mode === 'replace') {
+                        // Aggiorna
+                        const updateSql = `UPDATE cappe SET 
+                            inventario = ?, tipologia = ?, produttore = ?, modello = ?,
+                            sede = ?, reparto = ?, locale = ?, 
+                            data_manutenzione = ?, data_prossima_manutenzione = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                            WHERE matricola = ?`;
+                        
+                        db.run(updateSql, [
+                            row.Inventario, row.Tipologia, row.Produttore, row.Modello,
+                            row.Sede, row.Reparto, row.Locale,
+                            dataManutenzione, dataProssimaManutenzione,
+                            row.Matricola
+                        ], (err) => {
+                            if (err) {
+                                errors.push(`Riga ${index + 2}: ${err.message}`);
+                                skipped++;
+                            } else {
+                                updated++;
+                            }
+                            processRow(index + 1);
+                        });
+                    } else {
+                        // Salta
+                        skipped++;
+                        processRow(index + 1);
+                    }
+                } else {
+                    // Inserisci nuova
+                    const insertSql = `INSERT INTO cappe (
+                        inventario, tipologia, matricola, produttore, modello,
+                        sede, reparto, locale, data_manutenzione, data_prossima_manutenzione
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                    
+                    db.run(insertSql, [
+                        row.Inventario, row.Tipologia, row.Matricola, row.Produttore, row.Modello,
+                        row.Sede, row.Reparto, row.Locale,
+                        dataManutenzione, dataProssimaManutenzione
+                    ], (err) => {
+                        if (err) {
+                            errors.push(`Riga ${index + 2}: ${err.message}`);
+                            skipped++;
+                        } else {
+                            inserted++;
+                        }
+                        processRow(index + 1);
+                    });
+                }
+            });
+        };
+
+        processRow(0);
+
+    } catch (error) {
+        res.status(400).json({ error: 'Errore nel parsing del file Excel: ' + error.message });
+    }
 });
 
 // Avvia server

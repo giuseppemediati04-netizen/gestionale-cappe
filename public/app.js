@@ -8,12 +8,15 @@ let editingId = null;
 
 // Elementi DOM
 const modal = document.getElementById('formModal');
+const importModal = document.getElementById('importModal');
 const form = document.getElementById('cappaForm');
 const tableBody = document.getElementById('cappeTableBody');
 const btnAggiungi = document.getElementById('btnAggiungi');
+const btnImport = document.getElementById('btnImport');
 const btnAnnulla = document.getElementById('btnAnnulla');
 const btnExport = document.getElementById('btnExport');
 const closeModal = document.querySelector('.close');
+const closeImport = document.getElementById('closeImport');
 const searchInput = document.getElementById('searchInput');
 const formTitle = document.getElementById('formTitle');
 
@@ -33,8 +36,12 @@ function toggleAltroInput(select) {
 // Event Listeners
 document.addEventListener('DOMContentLoaded', loadCappe);
 btnAggiungi.addEventListener('click', openAddModal);
+btnImport.addEventListener('click', openImportModal);
 btnAnnulla.addEventListener('click', closeModalHandler);
 closeModal.addEventListener('click', closeModalHandler);
+closeImport.addEventListener('click', closeImportModalHandler);
+document.getElementById('btnCancelImport').addEventListener('click', closeImportModalHandler);
+document.getElementById('btnStartImport').addEventListener('click', startImport);
 btnExport.addEventListener('click', exportExcel);
 form.addEventListener('submit', handleSubmit);
 searchInput.addEventListener('input', handleSearch);
@@ -43,6 +50,9 @@ searchInput.addEventListener('input', handleSearch);
 window.addEventListener('click', (e) => {
     if (e.target === modal) {
         closeModalHandler();
+    }
+    if (e.target === importModal) {
+        closeImportModalHandler();
     }
 });
 
@@ -210,6 +220,84 @@ function closeModalHandler() {
     document.getElementById('tipologiaAltro').style.display = 'none';
     document.getElementById('tipologiaAltro').value = '';
     editingId = null;
+}
+
+// Apri modal importa
+function openImportModal() {
+    importModal.style.display = 'block';
+    document.getElementById('excelFile').value = '';
+    document.getElementById('importProgress').style.display = 'none';
+    document.querySelector('input[name="importMode"][value="add"]').checked = true;
+}
+
+// Chiudi modal importa
+function closeImportModalHandler() {
+    importModal.style.display = 'none';
+    document.getElementById('excelFile').value = '';
+    document.getElementById('importProgress').style.display = 'none';
+}
+
+// Avvia importazione
+async function startImport() {
+    const fileInput = document.getElementById('excelFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('Seleziona un file Excel', 'error');
+        return;
+    }
+    
+    const mode = document.querySelector('input[name="importMode"]:checked').value;
+    
+    // Mostra progress bar
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importProgressBar').style.width = '50%';
+    document.getElementById('btnStartImport').disabled = true;
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch(`${API_URL.replace('/api/cappe', '')}/api/cappe/import/excel?mode=${mode}`, {
+            method: 'POST',
+            body: await file.arrayBuffer(),
+            headers: {
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }
+        });
+        
+        document.getElementById('importProgressBar').style.width = '100%';
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            let message = `Importazione completata!\n`;
+            if (result.inserted > 0) message += `✅ Inserite: ${result.inserted}\n`;
+            if (result.updated > 0) message += `🔄 Aggiornate: ${result.updated}\n`;
+            if (result.skipped > 0) message += `⏭️ Saltate: ${result.skipped}\n`;
+            if (result.errors) message += `\n⚠️ Errori: ${result.errors.length}`;
+            
+            showNotification(message.replace(/\n/g, ' | '), 'success');
+            closeImportModalHandler();
+            loadCappe();
+            
+            // Se ci sono errori, mostrali in console
+            if (result.errors && result.errors.length > 0) {
+                console.error('Errori durante l\'importazione:', result.errors);
+            }
+        } else {
+            showNotification(result.error || 'Errore durante l\'importazione', 'error');
+        }
+    } catch (error) {
+        showNotification('Errore di connessione durante l\'importazione', 'error');
+        console.error('Errore:', error);
+    } finally {
+        document.getElementById('btnStartImport').disabled = false;
+        setTimeout(() => {
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('importProgressBar').style.width = '0%';
+        }, 2000);
+    }
 }
 
 // Gestisci submit form

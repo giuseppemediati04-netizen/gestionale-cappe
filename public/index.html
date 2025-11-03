@@ -15,6 +15,7 @@
 
         <div class="toolbar">
             <button id="btnAggiungi" class="btn btn-primary">➕ Aggiungi Cappa</button>
+            <button id="btnImport" class="btn btn-warning">📤 Importa Excel</button>
             <button id="btnExport" class="btn btn-success">📊 Esporta Excel</button>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Cerca per matricola, modello, sede...">
@@ -98,6 +99,67 @@
                         <button type="button" class="btn btn-secondary" id="btnAnnulla">❌ Annulla</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Modal Importa Excel -->
+        <div id="importModal" class="modal">
+            <div class="modal-content" style="max-width: 600px;">
+                <span class="close" id="closeImport">&times;</span>
+                <h2>📤 Importa Cappe da Excel</h2>
+                
+                <div class="import-instructions">
+                    <h3>📋 Istruzioni:</h3>
+                    <ol>
+                        <li>Il file Excel deve avere queste colonne (intestazioni esatte):
+                            <ul>
+                                <li><strong>Inventario</strong></li>
+                                <li><strong>Tipologia</strong></li>
+                                <li><strong>Matricola</strong></li>
+                                <li><strong>Produttore</strong></li>
+                                <li><strong>Modello</strong></li>
+                                <li><strong>Sede</strong></li>
+                                <li><strong>Reparto</strong></li>
+                                <li><strong>Locale</strong></li>
+                                <li><strong>Data Manutenzione</strong> (opzionale, formato: gg/mm/aaaa)</li>
+                                <li><strong>Data Prossima Manutenzione</strong> (opzionale, formato: gg/mm/aaaa)</li>
+                            </ul>
+                        </li>
+                        <li>Tutti i campi tranne le date sono obbligatori</li>
+                        <li>Le date devono essere nel formato: <strong>03/11/2025</strong></li>
+                    </ol>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label><strong>Modalità di importazione:</strong></label>
+                    <div style="margin: 10px 0;">
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="radio" name="importMode" value="add" checked style="margin-right: 10px;">
+                            <span><strong>Aggiungi solo nuove</strong> - Salta le cappe con matricola già esistente</span>
+                        </label>
+                        <label style="display: flex; align-items: center;">
+                            <input type="radio" name="importMode" value="replace" style="margin-right: 10px;">
+                            <span><strong>Sostituisci esistenti</strong> - Aggiorna le cappe con stessa matricola</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="excelFile"><strong>Seleziona file Excel:</strong></label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="margin-top: 10px;">
+                </div>
+
+                <div class="form-actions" style="margin-top: 30px;">
+                    <button type="button" class="btn btn-primary" id="btnStartImport">📤 Importa</button>
+                    <button type="button" class="btn btn-secondary" id="btnCancelImport">❌ Annulla</button>
+                </div>
+
+                <div id="importProgress" style="display: none; margin-top: 20px;">
+                    <p style="text-align: center; font-weight: bold;">Importazione in corso...</p>
+                    <div style="width: 100%; background: #ddd; border-radius: 5px; height: 20px;">
+                        <div id="importProgressBar" style="width: 0%; background: #667eea; height: 100%; border-radius: 5px; transition: width 0.3s;"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
