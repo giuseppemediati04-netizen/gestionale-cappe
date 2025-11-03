@@ -1,4 +1,7 @@
-const API_URL = 'http://localhost:3000/api/cappe';
+// Determina l'URL dell'API in base all'ambiente
+const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000/api/cappe'
+    : `${window.location.origin}/api/cappe`;
 
 let cappe = [];
 let editingId = null;
