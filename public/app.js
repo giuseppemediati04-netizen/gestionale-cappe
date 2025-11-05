@@ -13,6 +13,7 @@ const form = document.getElementById('cappaForm');
 const tableBody = document.getElementById('cappeTableBody');
 const btnAggiungi = document.getElementById('btnAggiungi');
 const btnImport = document.getElementById('btnImport');
+const btnRefresh = document.getElementById('btnRefresh');
 const btnAnnulla = document.getElementById('btnAnnulla');
 const btnExport = document.getElementById('btnExport');
 const closeModal = document.querySelector('.close');
@@ -37,6 +38,7 @@ function toggleAltroInput(select) {
 document.addEventListener('DOMContentLoaded', loadCappe);
 btnAggiungi.addEventListener('click', openAddModal);
 btnImport.addEventListener('click', openImportModal);
+btnRefresh.addEventListener('click', refreshData);
 btnAnnulla.addEventListener('click', closeModalHandler);
 closeModal.addEventListener('click', closeModalHandler);
 closeImport.addEventListener('click', closeImportModalHandler);
@@ -94,8 +96,9 @@ function renderTable(data) {
                 <td class="${manutenzioneStatus.class}">${formatDate(cappa.data_prossima_manutenzione)}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-edit" onclick="editCappa(${cappa.id})">✏️</button>
-                        <button class="btn btn-delete" onclick="deleteCappa(${cappa.id}, '${cappa.matricola}')">🗑️</button>
+                        <button class="btn btn-edit" onclick="editCappa(${cappa.id})" title="Modifica">✏️</button>
+                        <button class="btn btn-exploded" onclick="openEsploso(${cappa.id})" title="Esploso">🔧</button>
+                        <button class="btn btn-delete" onclick="deleteCappa(${cappa.id}, '${cappa.matricola}')" title="Elimina">🗑️</button>
                     </div>
                 </td>
             </tr>
@@ -405,6 +408,17 @@ function handleSearch(e) {
     });
     
     renderTable(filtered);
+}
+
+// Aggiorna dati
+function refreshData() {
+    showNotification('Aggiornamento dati...', 'success');
+    loadCappe();
+}
+
+// Apri pagina esploso
+function openEsploso(id) {
+    window.open(`esploso.html?id=${id}`, '_blank', 'width=1200,height=800');
 }
 
 // Export Excel

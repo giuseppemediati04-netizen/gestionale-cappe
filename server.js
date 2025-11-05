@@ -40,9 +40,36 @@ function initDatabase() {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
         if (err) {
-            console.error('Errore creazione tabella:', err);
+            console.error('Errore creazione tabella cappe:', err);
         } else {
             console.log('Tabella cappe pronta');
+        }
+    });
+    
+    // Tabella esploso tecnico
+    db.run(`CREATE TABLE IF NOT EXISTS esploso (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cappa_id INTEGER NOT NULL,
+        dati_motore TEXT,
+        dati_filtri TEXT,
+        dati_luce_uv TEXT,
+        dati_luce_bianca TEXT,
+        ore_lavoro_cappa INTEGER DEFAULT 0,
+        ore_lavoro_filtri INTEGER DEFAULT 0,
+        foto_cappa TEXT,
+        foto_motore TEXT,
+        foto_filtri TEXT,
+        foto_luce_uv TEXT,
+        foto_luce_bianca TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cappa_id) REFERENCES cappe(id) ON DELETE CASCADE,
+        UNIQUE(cappa_id)
+    )`, (err) => {
+        if (err) {
+            console.error('Errore creazione tabella esploso:', err);
+        } else {
+            console.log('Tabella esploso pronta');
         }
     });
 }
@@ -204,6 +231,93 @@ app.get('/api/cappe/export/excel', (req, res) => {
             res.setHeader('Content-Disposition', 'attachment; filename=cappe_inventario.xlsx');
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.send(buffer);
+        }
+    });
+});
+
+// GET - Ottieni dati esploso per una cappa
+app.get('/api/esploso/:cappaId', (req, res) => {
+    db.get('SELECT * FROM esploso WHERE cappa_id = ?', [req.params.cappaId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else if (!row) {
+            res.status(404).json({ error: 'Dati esploso non trovati' });
+        } else {
+            res.json({ data: row });
+        }
+    });
+});
+
+// POST - Salva/Aggiorna dati esploso
+app.post('/api/esploso', (req, res) => {
+    const {
+        cappa_id,
+        dati_motore,
+        dati_filtri,
+        dati_luce_uv,
+        dati_luce_bianca,
+        ore_lavoro_cappa,
+        ore_lavoro_filtri,
+        foto_cappa,
+        foto_motore,
+        foto_filtri,
+        foto_luce_uv,
+        foto_luce_bianca
+    } = req.body;
+
+    if (!cappa_id) {
+        return res.status(400).json({ error: 'ID cappa mancante' });
+    }
+
+    // Verifica se esiste già un record per questa cappa
+    db.get('SELECT id FROM esploso WHERE cappa_id = ?', [cappa_id], (err, existing) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        if (existing) {
+            // Aggiorna
+            const updateSql = `UPDATE esploso SET 
+                dati_motore = ?, dati_filtri = ?, dati_luce_uv = ?, dati_luce_bianca = ?,
+                ore_lavoro_cappa = ?, ore_lavoro_filtri = ?,
+                foto_cappa = ?, foto_motore = ?, foto_filtri = ?, foto_luce_uv = ?, foto_luce_bianca = ?,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE cappa_id = ?`;
+            
+            db.run(updateSql, [
+                dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
+                ore_lavoro_cappa, ore_lavoro_filtri,
+                foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca,
+                cappa_id
+            ], function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                } else {
+                    res.json({ message: 'Dati esploso aggiornati con successo' });
+                }
+            });
+        } else {
+            // Inserisci nuovo
+            const insertSql = `INSERT INTO esploso (
+                cappa_id, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
+                ore_lavoro_cappa, ore_lavoro_filtri,
+                foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            
+            db.run(insertSql, [
+                cappa_id, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
+                ore_lavoro_cappa, ore_lavoro_filtri,
+                foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca
+            ], function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                } else {
+                    res.status(201).json({
+                        message: 'Dati esploso creati con successo',
+                        id: this.lastID
+                    });
+                }
+            });
         }
     });
 });
