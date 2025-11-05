@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esploso Cappa - Gestionale Cappe</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .esploso-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .anagrafica-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .anagrafica-section h2 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .anagrafica-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .anagrafica-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .anagrafica-item label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .anagrafica-item span {
+            padding: 10px;
+            background: #f8f9ff;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .dettagli-section {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dettagli-section h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #764ba2;
+        }
+
+        .detail-group {
+            margin-bottom: 20px;
+        }
+
+        .detail-group label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .detail-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .detail-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .photo-upload {
+            margin-top: 10px;
+        }
+
+        .photo-upload input[type="file"] {
+            display: none;
+        }
+
+        .photo-upload-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .photo-upload-label:hover {
+            background: #5568d3;
+        }
+
+        .photo-preview {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .photo-preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            object-fit: cover;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .ore-lavoro {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .ore-input {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ore-input label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .ore-input input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .ore-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .action-buttons-esploso {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn-save-esploso {
+            padding: 15px 40px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save-esploso:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-back {
+            padding: 15px 40px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-back:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="esploso-container">
+        <header>
+            <h1>🔧 Esploso Tecnico Cappa</h1>
+        </header>
+
+        <div id="loading" class="loading">
+            Caricamento dati...
+        </div>
+
+        <div id="content" style="display: none;">
+            <!-- Anagrafica -->
+            <div class="anagrafica-section">
+                <h2>📋 Anagrafica Cappa</h2>
+                <div class="anagrafica-grid">
+                    <div class="anagrafica-item">
+                        <label>Inventario:</label>
+                        <span id="ana-inventario"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Tipologia:</label>
+                        <span id="ana-tipologia"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Matricola:</label>
+                        <span id="ana-matricola"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Produttore:</label>
+                        <span id="ana-produttore"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Modello:</label>
+                        <span id="ana-modello"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Sede:</label>
+                        <span id="ana-sede"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Reparto:</label>
+                        <span id="ana-reparto"></span>
+                    </div>
+                    <div class="anagrafica-item">
+                        <label>Locale:</label>
+                        <span id="ana-locale"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dettagli Tecnici -->
+            <form id="esplosoForm">
+                <!-- Foto Cappa -->
+                <div class="dettagli-section">
+                    <h3>📸 Foto Cappa</h3>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoCappa" class="photo-upload-label">📷 Carica Foto Cappa</label>
+                            <input type="file" id="fotoCappa" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoCappa"></div>
+                    </div>
+                </div>
+
+                <!-- Dati Motore -->
+                <div class="dettagli-section">
+                    <h3>⚙️ Dati Motore</h3>
+                    <div class="detail-group">
+                        <label>Informazioni Motore:</label>
+                        <textarea id="datiMotore" placeholder="Inserisci marca, modello, potenza, ecc..."></textarea>
+                    </div>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoMotore" class="photo-upload-label">📷 Carica Foto Motore</label>
+                            <input type="file" id="fotoMotore" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoMotore"></div>
+                    </div>
+                </div>
+
+                <!-- Dati Filtri -->
+                <div class="dettagli-section">
+                    <h3>🔲 Dati Filtri</h3>
+                    <div class="detail-group">
+                        <label>Informazioni Filtri:</label>
+                        <textarea id="datiFiltri" placeholder="Inserisci tipo filtri, dimensioni, codici, ecc..."></textarea>
+                    </div>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoFiltri" class="photo-upload-label">📷 Carica Foto Filtri</label>
+                            <input type="file" id="fotoFiltri" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoFiltri"></div>
+                    </div>
+                </div>
+
+                <!-- Luce UV -->
+                <div class="dettagli-section">
+                    <h3>💡 Dati Luce UV</h3>
+                    <div class="detail-group">
+                        <label>Informazioni Luce UV:</label>
+                        <textarea id="datiLuceUV" placeholder="Inserisci potenza, marca, modello lampada UV, ecc..."></textarea>
+                    </div>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoLuceUV" class="photo-upload-label">📷 Carica Foto Luce UV</label>
+                            <input type="file" id="fotoLuceUV" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoLuceUV"></div>
+                    </div>
+                </div>
+
+                <!-- Luce Bianca -->
+                <div class="dettagli-section">
+                    <h3>💡 Dati Luce Bianca</h3>
+                    <div class="detail-group">
+                        <label>Informazioni Luce Bianca:</label>
+                        <textarea id="datiLuceBianca" placeholder="Inserisci potenza, marca, tipo lampada, ecc..."></textarea>
+                    </div>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoLuceBianca" class="photo-upload-label">📷 Carica Foto Luce Bianca</label>
+                            <input type="file" id="fotoLuceBianca" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoLuceBianca"></div>
+                    </div>
+                </div>
+
+                <!-- Ore di Lavoro -->
+                <div class="dettagli-section">
+                    <h3>⏱️ Ore di Lavoro</h3>
+                    <div class="ore-lavoro">
+                        <div class="ore-input">
+                            <label>Ore di Lavoro Cappa:</label>
+                            <input type="number" id="oreLavoroCappa" placeholder="0" min="0">
+                        </div>
+                        <div class="ore-input">
+                            <label>Ore di Lavoro Filtri:</label>
+                            <input type="number" id="oreLavoroFiltri" placeholder="0" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pulsanti Azione -->
+                <div class="action-buttons-esploso">
+                    <button type="submit" class="btn-save-esploso">💾 Salva Dati</button>
+                    <button type="button" class="btn-back" onclick="window.close()">← Chiudi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="esploso.js"></script>
+</body>
+</html>
