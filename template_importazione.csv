@@ -1,0 +1,4 @@
+Inventario,Tipologia,Matricola,Produttore,Modello,Sede,Reparto,Locale,Data Manutenzione,Data Prossima Manutenzione
+INV001,Cappa biologica,MAT001,Azienda XYZ,Modello ABC,Sede Milano,Laboratorio,Locale 1,15/10/2025,15/04/2026
+INV002,Cappa chimica,MAT002,Fornitore ABC,Modello DEF,Sede Roma,Produzione,Locale 2,20/09/2025,20/03/2026
+INV003,Cappa sterile,MAT003,Produttore DEF,Modello GHI,Sede Torino,Ricerca,Locale 3,,

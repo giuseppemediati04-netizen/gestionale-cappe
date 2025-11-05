@@ -394,7 +394,8 @@ function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
     
     const filtered = cappe.filter(cappa => {
-        return cappa.matricola.toLowerCase().includes(searchTerm) ||
+        return cappa.inventario.toLowerCase().includes(searchTerm) ||
+               cappa.matricola.toLowerCase().includes(searchTerm) ||
                cappa.modello.toLowerCase().includes(searchTerm) ||
                cappa.produttore.toLowerCase().includes(searchTerm) ||
                cappa.sede.toLowerCase().includes(searchTerm) ||

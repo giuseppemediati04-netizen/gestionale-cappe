@@ -51,7 +51,7 @@ function initDatabase() {
 
 // GET - Ottieni tutte le cappe
 app.get('/api/cappe', (req, res) => {
-    db.all('SELECT * FROM cappe ORDER BY created_at DESC', [], (err, rows) => {
+    db.all('SELECT * FROM cappe ORDER BY inventario ASC', [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
         } else {
