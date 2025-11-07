@@ -84,6 +84,13 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chart-container:hover {
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
         }
 
         .chart-container h3 {
@@ -92,6 +99,21 @@
             text-align: center;
             font-size: 1.3em;
             font-weight: 600;
+        }
+
+        .chart-container::after {
+            content: "👆 Clicca per filtrare";
+            display: block;
+            text-align: center;
+            font-size: 0.85em;
+            color: #999;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .chart-container:hover::after {
+            opacity: 1;
         }
 
         .chart-wrapper {

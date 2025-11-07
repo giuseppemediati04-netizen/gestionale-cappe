@@ -35,7 +35,10 @@ function toggleAltroInput(select) {
 }
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', loadCappe);
+document.addEventListener('DOMContentLoaded', () => {
+    loadCappe();
+    applyUrlFilters();
+});
 btnAggiungi.addEventListener('click', openAddModal);
 btnImport.addEventListener('click', openImportModal);
 btnRefresh.addEventListener('click', refreshData);
@@ -47,6 +50,56 @@ document.getElementById('btnStartImport').addEventListener('click', startImport)
 btnExport.addEventListener('click', exportExcel);
 form.addEventListener('submit', handleSubmit);
 searchInput.addEventListener('input', handleSearch);
+
+// Applica filtri da URL (quando arrivi dalla dashboard)
+function applyUrlFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const sede = urlParams.get('sede');
+    const correttiva = urlParams.get('correttiva');
+    const manutenzione = urlParams.get('manutenzione');
+    
+    if (sede) {
+        searchInput.value = sede;
+        searchInput.focus();
+        showNotification(`📍 Filtro applicato: Sede "${sede}"`, 'success');
+    } else if (correttiva) {
+        searchInput.value = correttiva;
+        searchInput.focus();
+        showNotification(`⚠️ Filtro applicato: Stato "${correttiva}"`, 'success');
+    } else if (manutenzione) {
+        // Filtra per stato manutenzione
+        filterByManutenzione(manutenzione);
+        showNotification(`⚙️ Filtro applicato: Manutenzione "${manutenzione}"`, 'success');
+    }
+}
+
+// Filtra per stato manutenzione
+function filterByManutenzione(stato) {
+    const today = new Date();
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    
+    const filtered = cappe.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) {
+            return stato === 'Non programmata';
+        }
+        
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        
+        if (stato === 'Scaduta') {
+            return dataProx < today;
+        } else if (stato === 'Prossima') {
+            return dataProx >= today && dataProx <= in30Days;
+        } else if (stato === 'OK') {
+            return dataProx > in30Days;
+        }
+        
+        return false;
+    });
+    
+    renderTable(filtered);
+}
 
 // Chiudi modal cliccando fuori
 window.addEventListener('click', (e) => {

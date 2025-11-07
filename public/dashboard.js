@@ -181,9 +181,40 @@ function createPieChart(canvasId, data) {
                         }
                     }
                 }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const label = data.labels[index];
+                    handleChartClick(canvasId, label);
+                }
             }
         }
     });
+}
+
+// Gestisce click sui grafici
+function handleChartClick(chartId, label) {
+    // Rimuovi emoji e spazi extra dal label
+    const cleanLabel = label.replace(/[✅⚠️🔧❌⏰⚪]/g, '').trim();
+    
+    // Costruisci URL con parametro di filtro
+    let filterParam = '';
+    
+    switch(chartId) {
+        case 'chartSede':
+            filterParam = `sede=${encodeURIComponent(cleanLabel)}`;
+            break;
+        case 'chartCorrettiva':
+            filterParam = `correttiva=${encodeURIComponent(cleanLabel)}`;
+            break;
+        case 'chartManutenzioni':
+            filterParam = `manutenzione=${encodeURIComponent(cleanLabel)}`;
+            break;
+    }
+    
+    // Vai alla pagina cappe con filtro
+    window.location.href = `cappe.html?${filterParam}`;
 }
 
 // Mostra notifica
