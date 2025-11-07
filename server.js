@@ -34,6 +34,7 @@ function initDatabase() {
         sede TEXT NOT NULL,
         reparto TEXT NOT NULL,
         locale TEXT NOT NULL,
+        stato_correttiva TEXT DEFAULT 'Operativa',
         data_manutenzione TEXT,
         data_prossima_manutenzione TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -43,6 +44,12 @@ function initDatabase() {
             console.error('Errore creazione tabella cappe:', err);
         } else {
             console.log('Tabella cappe pronta');
+            // Aggiungi colonna se non esiste (per database esistenti)
+            db.run(`ALTER TABLE cappe ADD COLUMN stato_correttiva TEXT DEFAULT 'Operativa'`, (err) => {
+                if (err && !err.message.includes('duplicate column')) {
+                    console.error('Errore aggiunta colonna stato_correttiva:', err);
+                }
+            });
         }
     });
     
@@ -75,6 +82,83 @@ function initDatabase() {
 }
 
 // ============= API ENDPOINTS =============
+
+// GET - Statistiche per dashboard
+app.get('/api/dashboard/stats', (req, res) => {
+    const stats = {};
+    
+    // Totale cappe
+    db.get('SELECT COUNT(*) as total FROM cappe', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        stats.totalCappe = row.total;
+        
+        // Sedi attive
+        db.get('SELECT COUNT(DISTINCT sede) as total FROM cappe', [], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            stats.sediAttive = row.total;
+            
+            // Manutenzioni scadute
+            db.get(`SELECT COUNT(*) as total FROM cappe 
+                    WHERE data_prossima_manutenzione IS NOT NULL 
+                    AND data_prossima_manutenzione < date('now')`, [], (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
+                stats.manutenzioniScadute = row.total;
+                
+                // Prossime manutenzioni (30 giorni)
+                db.get(`SELECT COUNT(*) as total FROM cappe 
+                        WHERE data_prossima_manutenzione IS NOT NULL 
+                        AND data_prossima_manutenzione >= date('now')
+                        AND data_prossima_manutenzione <= date('now', '+30 days')`, [], (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    stats.manutenzioniProssime = row.total;
+                    
+                    // Cappe in correttiva
+                    db.get(`SELECT COUNT(*) as total FROM cappe 
+                            WHERE stato_correttiva != 'Operativa'`, [], (err, row) => {
+                        if (err) return res.status(500).json({ error: err.message });
+                        stats.cappeCorrettiva = row.total;
+                        
+                        res.json({ data: stats });
+                    });
+                });
+            });
+        });
+    });
+});
+
+// GET - Dati grafici per dashboard
+app.get('/api/dashboard/charts', (req, res) => {
+    const charts = {};
+    
+    // Cappe per sede
+    db.all(`SELECT sede, COUNT(*) as count FROM cappe GROUP BY sede ORDER BY count DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        charts.perSede = rows;
+        
+        // Stato correttiva
+        db.all(`SELECT stato_correttiva, COUNT(*) as count FROM cappe GROUP BY stato_correttiva`, [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            charts.statoCorrettiva = rows;
+            
+            // Stato manutenzioni
+            db.all(`SELECT 
+                    CASE 
+                        WHEN data_prossima_manutenzione IS NULL THEN 'Non programmata'
+                        WHEN data_prossima_manutenzione < date('now') THEN 'Scaduta'
+                        WHEN data_prossima_manutenzione <= date('now', '+30 days') THEN 'Prossima'
+                        ELSE 'OK'
+                    END as stato,
+                    COUNT(*) as count
+                    FROM cappe 
+                    GROUP BY stato`, [], (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                charts.statoManutenzioni = rows;
+                
+                res.json({ data: charts });
+            });
+        });
+    });
+});
 
 // GET - Ottieni tutte le cappe
 app.get('/api/cappe', (req, res) => {
@@ -111,6 +195,7 @@ app.post('/api/cappe', (req, res) => {
         sede,
         reparto,
         locale,
+        stato_correttiva,
         data_manutenzione,
         data_prossima_manutenzione
     } = req.body;
@@ -122,12 +207,12 @@ app.post('/api/cappe', (req, res) => {
 
     const sql = `INSERT INTO cappe (
         inventario, tipologia, matricola, produttore, modello, 
-        sede, reparto, locale, data_manutenzione, data_prossima_manutenzione
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        sede, reparto, locale, stato_correttiva, data_manutenzione, data_prossima_manutenzione
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
         inventario, tipologia, matricola, produttore, modello,
-        sede, reparto, locale, data_manutenzione, data_prossima_manutenzione
+        sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione
     ], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
@@ -155,20 +240,21 @@ app.put('/api/cappe/:id', (req, res) => {
         sede,
         reparto,
         locale,
+        stato_correttiva,
         data_manutenzione,
         data_prossima_manutenzione
     } = req.body;
 
     const sql = `UPDATE cappe SET 
         inventario = ?, tipologia = ?, matricola = ?, produttore = ?, 
-        modello = ?, sede = ?, reparto = ?, locale = ?, 
+        modello = ?, sede = ?, reparto = ?, locale = ?, stato_correttiva = ?,
         data_manutenzione = ?, data_prossima_manutenzione = ?,
         updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`;
 
     db.run(sql, [
         inventario, tipologia, matricola, produttore, modello,
-        sede, reparto, locale, data_manutenzione, data_prossima_manutenzione,
+        sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione,
         req.params.id
     ], function(err) {
         if (err) {
@@ -195,6 +281,65 @@ app.delete('/api/cappe/:id', (req, res) => {
         } else {
             res.json({ message: 'Cappa eliminata con successo' });
         }
+    });
+});
+
+// GET - Statistiche per Dashboard
+app.get('/api/dashboard/stats', (req, res) => {
+    const stats = {};
+    
+    // Totale cappe
+    db.get('SELECT COUNT(*) as total FROM cappe', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        stats.totale_cappe = row.total;
+        
+        // Sedi attive
+        db.get('SELECT COUNT(DISTINCT sede) as total FROM cappe', [], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            stats.sedi_attive = row.total;
+            
+            // Manutenzioni scadute
+            db.get(`SELECT COUNT(*) as total FROM cappe 
+                    WHERE data_prossima_manutenzione < date('now')`, [], (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
+                stats.manutenzioni_scadute = row.total;
+                
+                // Prossime manutenzioni (30 giorni)
+                db.get(`SELECT COUNT(*) as total FROM cappe 
+                        WHERE data_prossima_manutenzione BETWEEN date('now') AND date('now', '+30 days')`, [], (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    stats.prossime_manutenzioni = row.total;
+                    
+                    // Cappe in correttiva
+                    db.get(`SELECT COUNT(*) as total FROM cappe 
+                            WHERE stato_correttiva IN ('In Correttiva', 'In Attesa Riparazione')`, [], (err, row) => {
+                        if (err) return res.status(500).json({ error: err.message });
+                        stats.cappe_correttiva = row.total;
+                        
+                        // Dati grafici - Cappe per Sede
+                        db.all(`SELECT sede, COUNT(*) as count FROM cappe GROUP BY sede ORDER BY count DESC`, [], (err, rows) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            stats.cappe_per_sede = rows;
+                            
+                            // Dati grafici - Stato Correttiva
+                            db.all(`SELECT stato_correttiva, COUNT(*) as count FROM cappe GROUP BY stato_correttiva`, [], (err, rows) => {
+                                if (err) return res.status(500).json({ error: err.message });
+                                stats.stato_correttiva = rows;
+                                
+                                // Stato manutenzioni
+                                stats.stato_manutenzioni = [
+                                    { stato: 'OK', count: stats.totale_cappe - stats.manutenzioni_scadute - stats.prossime_manutenzioni },
+                                    { stato: 'Prossime', count: stats.prossime_manutenzioni },
+                                    { stato: 'Scadute', count: stats.manutenzioni_scadute }
+                                ];
+                                
+                                res.json({ data: stats });
+                            });
+                        });
+                    });
+                });
+            });
+        });
     });
 });
 
