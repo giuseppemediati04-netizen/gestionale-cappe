@@ -36,8 +36,9 @@ function toggleAltroInput(select) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    loadCappe();
-    applyUrlFilters();
+    loadCappe().then(() => {
+        applyUrlFilters();
+    });
 });
 btnAggiungi.addEventListener('click', openAddModal);
 btnImport.addEventListener('click', openImportModal);
@@ -60,23 +61,31 @@ function applyUrlFilters() {
     const manutenzione = urlParams.get('manutenzione');
     
     if (sede) {
+        // Filtra per sede
+        const filtered = cappe.filter(cappa => 
+            cappa.sede.toLowerCase() === sede.toLowerCase()
+        );
+        renderTable(filtered);
         searchInput.value = sede;
-        searchInput.focus();
-        showNotification(`📍 Filtro applicato: Sede "${sede}"`, 'success');
+        showNotification(`📍 Filtro applicato: ${filtered.length} cappe nella sede "${sede}"`, 'success');
     } else if (correttiva) {
+        // Filtra per stato correttiva
+        const filtered = cappe.filter(cappa => 
+            cappa.stato_correttiva === correttiva
+        );
+        renderTable(filtered);
         searchInput.value = correttiva;
-        searchInput.focus();
-        showNotification(`⚠️ Filtro applicato: Stato "${correttiva}"`, 'success');
+        showNotification(`⚠️ Filtro applicato: ${filtered.length} cappe con stato "${correttiva}"`, 'success');
     } else if (manutenzione) {
         // Filtra per stato manutenzione
         filterByManutenzione(manutenzione);
-        showNotification(`⚙️ Filtro applicato: Manutenzione "${manutenzione}"`, 'success');
     }
 }
 
 // Filtra per stato manutenzione
 function filterByManutenzione(stato) {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const in30Days = new Date(today);
     in30Days.setDate(in30Days.getDate() + 30);
     
@@ -86,6 +95,7 @@ function filterByManutenzione(stato) {
         }
         
         const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
         
         if (stato === 'Scaduta') {
             return dataProx < today;
@@ -99,6 +109,7 @@ function filterByManutenzione(stato) {
     });
     
     renderTable(filtered);
+    showNotification(`⚙️ Filtro applicato: ${filtered.length} cappe con manutenzione "${stato}"`, 'success');
 }
 
 // Chiudi modal cliccando fuori
