@@ -143,12 +143,17 @@ function renderTable(data) {
     filteredCappe = data;
     
     if (data.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="11" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="12" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
         return;
     }
 
     tableBody.innerHTML = data.map(cappa => {
         const manutenzioneStatus = getMaintenanceStatus(cappa.data_prossima_manutenzione);
+        
+        // Icona per stato correttiva
+        let statoIcon = '✅';
+        if (cappa.stato_correttiva === 'In Correttiva') statoIcon = '⚠️';
+        if (cappa.stato_correttiva === 'In Attesa Riparazione') statoIcon = '🔧';
         
         return `
             <tr>
@@ -160,6 +165,7 @@ function renderTable(data) {
                 <td>${cappa.sede}</td>
                 <td>${cappa.reparto}</td>
                 <td>${cappa.locale}</td>
+                <td title="${cappa.stato_correttiva || 'Operativa'}">${statoIcon}</td>
                 <td>${formatDate(cappa.data_manutenzione)}</td>
                 <td class="${manutenzioneStatus.class}">${formatDate(cappa.data_prossima_manutenzione)}</td>
                 <td>
