@@ -4,6 +4,7 @@ const API_URL = (window.location.hostname === 'localhost' || window.location.hos
     : `${window.location.origin}/api/cappe`;
 
 let cappe = [];
+let filteredCappe = []; // Cappe attualmente visibili nella tabella
 let editingId = null;
 
 // Elementi DOM
@@ -138,6 +139,9 @@ async function loadCappe() {
 
 // Renderizza tabella
 function renderTable(data) {
+    // Salva le cappe filtrate per l'export
+    filteredCappe = data;
+    
     if (data.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="11" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
         return;
@@ -486,9 +490,62 @@ function openEsploso(id) {
 }
 
 // Export Excel
-function exportExcel() {
-    window.open(`${API_URL}/export/excel`, '_blank');
-    showNotification('Download Excel avviato', 'success');
+// Export Excel (solo cappe filtrate)
+async function exportExcel() {
+    try {
+        // Usa le cappe filtrate o tutte se non c'è filtro
+        const dataToExport = filteredCappe.length > 0 ? filteredCappe : cappe;
+        
+        if (dataToExport.length === 0) {
+            showNotification('Nessuna cappa da esportare', 'warning');
+            return;
+        }
+        
+        // Prepara i dati per Excel
+        const excelData = dataToExport.map(cappa => ({
+            'Inventario': cappa.inventario,
+            'Tipologia': cappa.tipologia,
+            'Matricola': cappa.matricola,
+            'Produttore': cappa.produttore,
+            'Modello': cappa.modello,
+            'Sede': cappa.sede,
+            'Reparto': cappa.reparto,
+            'Locale': cappa.locale,
+            'Stato Correttiva': cappa.stato_correttiva || 'Operativa',
+            'Data Manutenzione': cappa.data_manutenzione || '',
+            'Data Prossima Manutenzione': cappa.data_prossima_manutenzione || ''
+        }));
+        
+        // Crea il workbook usando XLSX dalla CDN
+        const XLSX = window.XLSX;
+        if (!XLSX) {
+            // Carica XLSX se non è già caricato
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+            script.onload = () => exportExcelWithXLSX(excelData);
+            document.head.appendChild(script);
+        } else {
+            exportExcelWithXLSX(excelData);
+        }
+        
+    } catch (error) {
+        console.error('Errore export:', error);
+        showNotification('Errore durante l\'export', 'error');
+    }
+}
+
+function exportExcelWithXLSX(data) {
+    const XLSX = window.XLSX;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cappe');
+    
+    // Nome file con data e numero di cappe
+    const date = new Date().toISOString().split('T')[0];
+    const fileName = `cappe_export_${data.length}_${date}.xlsx`;
+    
+    XLSX.writeFile(wb, fileName);
+    showNotification(`Export completato: ${data.length} cappe esportate`, 'success');
 }
 
 // Mostra notifica
