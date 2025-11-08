@@ -67,16 +67,16 @@ function applyUrlFilters() {
             cappa.sede.toLowerCase() === sede.toLowerCase()
         );
         renderTable(filtered);
-        searchInput.value = sede;
-        showNotification(`📍 Filtro applicato: ${filtered.length} cappe nella sede "${sede}"`, 'success');
+        // NON popolare la search box, lasciala vuota per cercare altro
+        showNotification(`📍 Filtro attivo: ${filtered.length} cappe nella sede "${sede}"`, 'success');
     } else if (correttiva) {
         // Filtra per stato correttiva
         const filtered = cappe.filter(cappa => 
             cappa.stato_correttiva === correttiva
         );
         renderTable(filtered);
-        searchInput.value = correttiva;
-        showNotification(`⚠️ Filtro applicato: ${filtered.length} cappe con stato "${correttiva}"`, 'success');
+        // NON popolare la search box
+        showNotification(`⚠️ Filtro attivo: ${filtered.length} cappe con stato "${correttiva}"`, 'success');
     } else if (manutenzione) {
         // Filtra per stato manutenzione
         filterByManutenzione(manutenzione);
@@ -510,7 +510,24 @@ async function deleteCappa(id, matricola) {
 function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
     
-    const filtered = cappe.filter(cappa => {
+    // Se c'è un filtro URL attivo (sede, correttiva, manutenzione), cerca dentro filteredCappe
+    // Altrimenti cerca in tutte le cappe
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlFilter = urlParams.get('sede') || urlParams.get('correttiva') || urlParams.get('manutenzione');
+    
+    const dataSource = (hasUrlFilter && filteredCappe.length > 0) ? filteredCappe : cappe;
+    
+    if (!searchTerm) {
+        // Se la ricerca è vuota, mostra il filtro URL o tutte le cappe
+        if (hasUrlFilter && filteredCappe.length > 0) {
+            renderTable(filteredCappe);
+        } else {
+            renderTable(cappe);
+        }
+        return;
+    }
+    
+    const filtered = dataSource.filter(cappa => {
         return cappa.inventario.toLowerCase().includes(searchTerm) ||
                cappa.matricola.toLowerCase().includes(searchTerm) ||
                cappa.modello.toLowerCase().includes(searchTerm) ||
