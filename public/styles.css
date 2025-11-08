@@ -155,28 +155,6 @@ header h1 {
     background: #520dc2;
 }
 
-.btn-pdf {
-    background: #17a2b8;
-    color: white;
-    padding: 6px 10px;
-    font-size: 0.8em;
-}
-
-.btn-pdf:hover {
-    background: #138496;
-}
-
-.btn-rapportino {
-    background: #6f42c1;
-    color: white;
-    padding: 6px 10px;
-    font-size: 0.8em;
-}
-
-.btn-rapportino:hover {
-    background: #5a32a3;
-}
-
 .btn-delete {
     background: #dc3545;
     color: white;

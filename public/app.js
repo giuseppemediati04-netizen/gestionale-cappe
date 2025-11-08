@@ -224,8 +224,6 @@ function renderTable(data) {
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editCappa(${cappa.id})" title="Modifica">✏️</button>
                         <button class="btn btn-exploded" onclick="openEsploso(${cappa.id})" title="Esploso">🔧</button>
-                        <button class="btn btn-pdf" onclick="generaPDFCorrettiva(${cappa.id})" title="PDF Correttiva">📄</button>
-                        <button class="btn btn-rapportino" onclick="apriRapportino(${cappa.id})" title="Rapportino">📋</button>
                         <button class="btn btn-delete" onclick="deleteCappa(${cappa.id}, '${cappa.matricola}')" title="Elimina">🗑️</button>
                     </div>
                 </td>
@@ -590,26 +588,6 @@ function refreshData() {
 // Apri pagina esploso
 function openEsploso(id) {
     window.open(`esploso.html?id=${id}`, '_blank', 'width=1200,height=800');
-}
-
-// Genera PDF Scheda Correttiva
-async function generaPDFCorrettiva(id) {
-    try {
-        const response = await fetch(`${API_URL}/${id}`);
-        const result = await response.json();
-        const cappa = result.data;
-        
-        // Apri finestra con modulo correttiva precompilato
-        window.open(`correttiva.html?id=${id}`, '_blank', 'width=1000,height=800');
-    } catch (error) {
-        showNotification('Errore nel caricamento dei dati', 'error');
-        console.error(error);
-    }
-}
-
-// Apri Rapportino di Lavoro
-function apriRapportino(id) {
-    window.open(`rapportino.html?id=${id}`, '_blank', 'width=1200,height=900');
 }
 
 // Export Excel
