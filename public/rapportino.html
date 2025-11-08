@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapportino di Lavoro</title>
+    <style>
+        @media print {
+            body { margin: 0; padding: 5mm; }
+            .no-print { display: none !important; }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            background: #f5f5f5;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 10mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: 150px 1fr 150px;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .logo-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .header-center {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header-right {
+            border: 2px solid #333;
+            padding: 5px;
+            text-align: center;
+        }
+
+        .header-right .label {
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .header-right .number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .row {
+            display: grid;
+            border: 1px solid #333;
+            border-top: none;
+        }
+
+        .row:first-of-type {
+            border-top: 1px solid #333;
+        }
+
+        .row-2col {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .row-3col {
+            grid-template-columns: 1fr 120px 1fr;
+        }
+
+        .cell {
+            padding: 4px 6px;
+            border-right: 1px solid #333;
+            min-height: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .cell:last-child {
+            border-right: none;
+        }
+
+        .cell.header-cell {
+            background: #f0f0f0;
+            font-weight: bold;
+            font-size: 9px;
+        }
+
+        .cell label {
+            font-size: 8px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .cell input[type="text"],
+        .cell input[type="number"] {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid #999;
+            padding: 2px;
+            font-size: 11px;
+        }
+
+        .cell.readonly input {
+            background: #f9f9f9;
+            font-weight: 600;
+        }
+
+        .checkbox-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px;
+        }
+
+        .checkbox-section label {
+            display: flex;
+            align-items: center;
+            font-size: 9px;
+            font-weight: normal;
+        }
+
+        .checkbox-section input[type="checkbox"] {
+            margin-right: 4px;
+            width: 12px;
+            height: 12px;
+        }
+
+        .big-cell {
+            grid-column: 1 / -1;
+            min-height: 60px;
+        }
+
+        .big-cell textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 10px;
+            padding: 4px;
+        }
+
+        .stato-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding: 4px;
+        }
+
+        .stato-option {
+            display: flex;
+            align-items: center;
+            font-size: 9px;
+        }
+
+        .stato-option input {
+            margin-right: 3px;
+            width: 12px;
+            height: 12px;
+        }
+
+        .attivita-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+
+        .attivita-table th,
+        .attivita-table td {
+            border: 1px solid #333;
+            padding: 3px;
+            text-align: center;
+            font-size: 9px;
+        }
+
+        .attivita-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .attivita-table input[type="text"],
+        .attivita-table input[type="date"],
+        .attivita-table input[type="time"],
+        .attivita-table input[type="number"] {
+            width: 100%;
+            border: none;
+            padding: 2px;
+            text-align: center;
+            font-size: 9px;
+        }
+
+        .attivita-table .tipo-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .attivita-table .tipo-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .attivita-table input[type="radio"] {
+            width: 10px;
+            height: 10px;
+            margin: 0;
+        }
+
+        .ricambi-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .ricambi-table th,
+        .ricambi-table td {
+            border: 1px solid #333;
+            padding: 4px;
+            font-size: 9px;
+        }
+
+        .ricambi-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .ricambi-table input {
+            width: 100%;
+            border: none;
+            padding: 2px;
+            font-size: 9px;
+        }
+
+        .firma-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+            border: 1px solid #333;
+            padding: 15px;
+        }
+
+        .firma-box {
+            text-align: center;
+        }
+
+        .firma-box .label {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 10px;
+        }
+
+        .firma-box .line {
+            border-top: 1px solid #333;
+            margin-top: 40px;
+        }
+
+        .footer-note {
+            font-size: 8px;
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+
+        .toolbar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-print {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-print:hover {
+            background: #218838;
+        }
+
+        .btn-close {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-close:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar no-print">
+        <button class="btn btn-print" onclick="window.print()">🖨️ Stampa/Salva PDF</button>
+        <button class="btn btn-close" onclick="window.close()">✕ Chiudi</button>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-box">
+                <div class="logo-text">LOGO</div>
+            </div>
+            <div class="header-center">
+                <div style="font-size: 9px; margin-bottom: 3px;">
+                    <label>AZIENDA/CLIENTE:</label>
+                    <input type="text" id="azienda" style="width: 100%; border-bottom: 1px solid #999; border: none; padding: 2px;">
+                </div>
+                <div style="font-size: 9px;">
+                    <label>PRESIDIATO IN:</label>
+                    <input type="text" id="presidiato" style="width: 100%; border-bottom: 1px solid #999; border: none; padding: 2px;">
+                </div>
+                <div style="font-size: 9px; margin-top: 3px;">
+                    <label>UBICAZIONE:</label>
+                    <input type="text" id="ubicazione" style="width: 100%; border-bottom: 1px solid #999; border: none; padding: 2px;">
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="label">NUMERO INTERVENTO<br>(DATA ENTRY) n.</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px;">
+                    <div>
+                        <div style="font-size: 9px; font-weight: bold;">NUMERO DI BOLLA</div>
+                        <input type="text" id="numeroBolla" style="width: 100%; text-align: center; font-size: 20px; font-weight: bold; border: 1px solid #333; padding: 5px; margin-top: 5px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dati Apparecchiatura -->
+        <div class="row row-3col">
+            <div class="cell">
+                <label>CLASSE APPARECCHIATURA</label>
+                <input type="text" id="classeApparecchiatura">
+            </div>
+            <div class="cell">
+                <label>COD. CMDB</label>
+                <input type="text" id="codCmdb1">
+            </div>
+            <div class="cell readonly">
+                <label>NUMERO INVENTARIO AZIENDA n.</label>
+                <input type="text" id="numeroInventario" readonly>
+            </div>
+        </div>
+
+        <div class="row row-3col">
+            <div class="cell">
+                <label>PRODUTTORE</label>
+                <input type="text" id="produttore">
+            </div>
+            <div class="cell">
+                <label>COD. CMDB</label>
+                <input type="text" id="codCmdb2">
+            </div>
+            <div class="cell readonly">
+                <label>NUMERO ETICHETTA n.</label>
+                <input type="text" id="numeroEtichetta" readonly>
+            </div>
+        </div>
+
+        <div class="row row-3col">
+            <div class="cell">
+                <label>MODELLO</label>
+                <input type="text" id="modello">
+            </div>
+            <div class="cell">
+                <label>COD. CMDB</label>
+                <input type="text" id="codCmdb3">
+            </div>
+            <div class="cell readonly">
+                <label>NUMERO MATRICOLA APPARECCHIATURA n.</label>
+                <input type="text" id="matricola" readonly>
+            </div>
+        </div>
+
+        <!-- Tipo Manutenzione -->
+        <div class="row">
+            <div class="cell header-cell">
+                TIPO MANUTENZIONE/INTERVENTO
+            </div>
+        </div>
+        <div class="row">
+            <div class="checkbox-section">
+                <label><input type="checkbox" name="tipoManutenzione" value="correttiva"> MANUTENZIONE CORRETTIVA</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="programmata"> MANUTENZIONE PROGRAMMATA</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="sicurezza"> SICUREZZA ELETTRICA</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="collaudo"> COLLAUDO DI ACCETTAZIONE</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="controllo"> CONTROLLO QUALITÀ / PRESTAZIONI</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="calibrazione"> CALIBRAZIONE / TARATURA</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="addestramento"> ADDESTRAMENTO</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="servizi"> SERVIZI INFORMATICI</label>
+                <label><input type="checkbox" name="tipoManutenzione" value="varie"> VARIE</label>
+            </div>
+        </div>
+
+        <!-- Descrizione Guasto -->
+        <div class="row">
+            <div class="cell header-cell">
+                DESCRIZIONE DEL GUASTO
+            </div>
+        </div>
+        <div class="row">
+            <div class="cell big-cell">
+                <textarea id="descrizioneGuasto"></textarea>
+            </div>
+        </div>
+
+        <!-- Codice Richiesta -->
+        <div class="row">
+            <div class="cell">
+                <label>CODICE RICHIESTA n.</label>
+                <input type="text" id="codiceRichiesta">
+            </div>
+        </div>
+
+        <!-- Descrizione Intervento -->
+        <div class="row">
+            <div class="cell header-cell">
+                DESCRIZIONE DELL'INTERVENTO
+            </div>
+        </div>
+        <div class="row">
+            <div class="cell big-cell">
+                <textarea id="descrizioneIntervento"></textarea>
+            </div>
+        </div>
+
+        <!-- Ricevente -->
+        <div class="row">
+            <div class="cell">
+                <label>RICEVENTE</label>
+                <input type="text" id="ricevente">
+            </div>
+        </div>
+
+        <!-- Richiedente -->
+        <div class="row">
+            <div class="cell">
+                <label>RICHIEDENTE (PERSONA O STRUTTURA SANITARIA) n/o.</label>
+                <input type="text" id="richiedente">
+            </div>
+        </div>
+
+        <!-- Riferimento Richiedente -->
+        <div class="row">
+            <div class="cell">
+                <label>RIFERIMENTO RICHIEDENTE (TELEFONO, MAIL, ALTRO)</label>
+                <input type="text" id="riferimentoRichiedente">
+            </div>
+        </div>
+
+        <!-- Data e Ora Ricezione -->
+        <div class="row">
+            <div class="cell">
+                <label>DATA E ORA DI RICEZIONE</label>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 5px;">
+                    <div><input type="number" placeholder="G" min="1" max="31" style="text-align: center;"></div>
+                    <div><input type="number" placeholder="M" min="1" max="12" style="text-align: center;"></div>
+                    <div><input type="number" placeholder="A" min="2020" max="2099" style="text-align: center;"></div>
+                    <div><input type="number" placeholder="H" min="0" max="23" style="text-align: center;"></div>
+                    <div><input type="number" placeholder="M" min="0" max="59" style="text-align: center;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stato Apparecchiatura -->
+        <div class="row">
+            <div class="cell header-cell">
+                STATO APPARECCHIATURA n/o:
+            </div>
+        </div>
+        <div class="row">
+            <div class="stato-grid">
+                <div>
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 5px;">INIZIALE</div>
+                    <div class="stato-option"><input type="radio" name="statoIniziale" value="nulo"> NULO</div>
+                    <div class="stato-option"><input type="radio" name="statoIniziale" value="lieve"> LIEVE</div>
+                    <div class="stato-option"><input type="radio" name="statoIniziale" value="grave"> GRAVE</div>
+                    <div class="stato-option"><input type="radio" name="statoIniziale" value="totale"> TOTALE</div>
+                </div>
+                <div>
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 5px;">FINALE</div>
+                    <div class="stato-option"><input type="radio" name="statoFinale" value="nulo"> NULO</div>
+                    <div class="stato-option"><input type="radio" name="statoFinale" value="lieve"> LIEVE</div>
+                    <div class="stato-option"><input type="radio" name="statoFinale" value="grave"> GRAVE</div>
+                    <div class="stato-option"><input type="radio" name="statoFinale" value="totale"> TOTALE</div>
+                </div>
+                <div>
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 5px;">PARZIALE</div>
+                    <div class="stato-option"><input type="radio" name="statoParziale" value="nulo"> NULO</div>
+                    <div class="stato-option"><input type="radio" name="statoParziale" value="lieve"> LIEVE</div>
+                    <div class="stato-option"><input type="radio" name="statoParziale" value="grave"> GRAVE</div>
+                    <div class="stato-option"><input type="radio" name="statoParziale" value="totale"> TOTALE</div>
+                </div>
+                <div>
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 5px;">TOTALE</div>
+                    <div class="stato-option"><input type="radio" name="statoTotale" value="nulo"> NULO</div>
+                    <div class="stato-option"><input type="radio" name="statoTotale" value="lieve"> LIEVE</div>
+                    <div class="stato-option"><input type="radio" name="statoTotale" value="grave"> GRAVE</div>
+                    <div class="stato-option"><input type="radio" name="statoTotale" value="totale"> TOTALE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabella Attività -->
+        <table class="attivita-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 40px;">ATTIVITÀ<br>n/o.</th>
+                    <th colspan="2" style="width: 100px;">TIPO ATTIVITÀ</th>
+                    <th rowspan="2" style="width: 150px;">TECNICO / FORNITORE</th>
+                    <th colspan="2">DATA APERTURA ATTIVITÀ</th>
+                    <th colspan="2">DATA CHIUSURA ATTIVITÀ</th>
+                    <th rowspan="2" style="width: 40px;">ORE<br>VIAGGIO<br>n/o.</th>
+                    <th rowspan="2" style="width: 40px;">ORE<br>LAVORO<br>n/o.</th>
+                </tr>
+                <tr>
+                    <th style="width: 25px;">I</th>
+                    <th style="width: 75px;">TIPO</th>
+                    <th style="width: 60px;">DATA</th>
+                    <th style="width: 50px;">ORA</th>
+                    <th style="width: 60px;">DATA</th>
+                    <th style="width: 50px;">ORA</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Riga 1 -->
+                <tr>
+                    <td><input type="radio" name="attivita" value="I1"> I<br><input type="radio" name="attivita" value="E1"> E</td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo1" value="EL"> EL</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1" value="ELT"> ELT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1" value="IT"> IT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1" value="SV"> SV</div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="CT"> CT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="MC"> MC</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="NR"> NR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="TR"> TR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="PR"> PR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo1b" value="VA"> VA</div>
+                        </div>
+                    </td>
+                    <td><input type="text" id="tecnico1"></td>
+                    <td><input type="date" id="dataApertura1"></td>
+                    <td><input type="time" id="oraApertura1"></td>
+                    <td><input type="date" id="dataChiusura1"></td>
+                    <td><input type="time" id="oraChiusura1"></td>
+                    <td><input type="number" step="0.5" id="oreViaggio1"></td>
+                    <td><input type="number" step="0.5" id="oreLavoro1"></td>
+                </tr>
+                <!-- Riga 2 -->
+                <tr>
+                    <td><input type="radio" name="attivita2" value="I2"> I<br><input type="radio" name="attivita2" value="E2"> E</td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo2" value="EL"> EL</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2" value="ELT"> ELT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2" value="IT"> IT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2" value="SV"> SV</div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="CT"> CT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="MC"> MC</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="NR"> NR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="TR"> TR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="PR"> PR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo2b" value="VA"> VA</div>
+                        </div>
+                    </td>
+                    <td><input type="text" id="tecnico2"></td>
+                    <td><input type="date" id="dataApertura2"></td>
+                    <td><input type="time" id="oraApertura2"></td>
+                    <td><input type="date" id="dataChiusura2"></td>
+                    <td><input type="time" id="oraChiusura2"></td>
+                    <td><input type="number" step="0.5" id="oreViaggio2"></td>
+                    <td><input type="number" step="0.5" id="oreLavoro2"></td>
+                </tr>
+                <!-- Riga 3 -->
+                <tr>
+                    <td><input type="radio" name="attivita3" value="I3"> I<br><input type="radio" name="attivita3" value="E3"> E</td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo3" value="EL"> EL</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3" value="ELT"> ELT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3" value="IT"> IT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3" value="SV"> SV</div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="CT"> CT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="MC"> MC</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="NR"> NR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="TR"> TR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="PR"> PR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo3b" value="VA"> VA</div>
+                        </div>
+                    </td>
+                    <td><input type="text" id="tecnico3"></td>
+                    <td><input type="date" id="dataApertura3"></td>
+                    <td><input type="time" id="oraApertura3"></td>
+                    <td><input type="date" id="dataChiusura3"></td>
+                    <td><input type="time" id="oraChiusura3"></td>
+                    <td><input type="number" step="0.5" id="oreViaggio3"></td>
+                    <td><input type="number" step="0.5" id="oreLavoro3"></td>
+                </tr>
+                <!-- Riga 4 -->
+                <tr>
+                    <td><input type="radio" name="attivita4" value="I4"> I<br><input type="radio" name="attivita4" value="E4"> E</td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo4" value="EL"> EL</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4" value="ELT"> ELT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4" value="IT"> IT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4" value="SV"> SV</div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tipo-col">
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="CT"> CT</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="MC"> MC</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="NR"> NR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="TR"> TR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="PR"> PR</div>
+                            <div class="tipo-item"><input type="radio" name="tipo4b" value="VA"> VA</div>
+                        </div>
+                    </td>
+                    <td><input type="text" id="tecnico4"></td>
+                    <td><input type="date" id="dataApertura4"></td>
+                    <td><input type="time" id="oraApertura4"></td>
+                    <td><input type="date" id="dataChiusura4"></td>
+                    <td><input type="time" id="oraChiusura4"></td>
+                    <td><input type="number" step="0.5" id="oreViaggio4"></td>
+                    <td><input type="number" step="0.5" id="oreLavoro4"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Parti di Ricambio -->
+        <div style="font-weight: bold; font-size: 10px; margin: 15px 0 5px 0;">PARTI DI RICAMBIO n/o.</div>
+        <table class="ricambi-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">COD. ALTHEA / CLIENTE</th>
+                    <th style="width: 20%;">COD. RICAMBIO</th>
+                    <th style="width: 45%;">DESCRIZIONE</th>
+                    <th style="width: 10%;">Q.TÀ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td></tr>
+                <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td></tr>
+            </tbody>
+        </table>
+
+        <!-- Firme -->
+        <div class="firma-section">
+            <div class="firma-box">
+                <div class="label">FIRMA DEL TECNICO</div>
+                <div class="line"></div>
+            </div>
+            <div class="firma-box">
+                <div class="label">FIRMA DEL CLIENTE</div>
+                <div class="line"></div>
+                <div style="font-size: 8px; margin-top: 5px; text-align: left;">
+                    Si prega di controllare attentamente quanto riportato.<br>
+                    Eventuali contestazioni successive non saranno<br>
+                    valide alcuno.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-note">
+            [SIC.MD.73.05] Copia bianca al Cliente (Reparto), copia gialla al laboratorio ALTHEA, copia rosa Cliente (Uff. Tecnico, SIC).
+        </div>
+    </div>
+
+    <script src="rapportino.js"></script>
+</body>
+</html>
