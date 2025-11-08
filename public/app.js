@@ -162,14 +162,28 @@ function updateFilteredStats(data) {
         return dataProx >= today && dataProx <= in30Days;
     }).length;
     
+    // Calcola cappe in correttiva
+    const inCorrettiva = data.filter(cappa => 
+        cappa.stato_correttiva === 'In Correttiva'
+    ).length;
+    
+    // Calcola cappe in attesa riparazione
+    const inAttesa = data.filter(cappa => 
+        cappa.stato_correttiva === 'In Attesa Riparazione'
+    ).length;
+    
     // Aggiorna le card
-    const totalCard = document.querySelector('.stats .stat-card:nth-child(1) p');
-    const scaduteCard = document.querySelector('.stats .stat-card:nth-child(2) p');
-    const prossimeCard = document.querySelector('.stats .stat-card:nth-child(3) p');
+    const totalCard = document.getElementById('totalCappe');
+    const scaduteCard = document.getElementById('manutenzioniScadute');
+    const prossimeCard = document.getElementById('manutenzioniProssime');
+    const correttivaCard = document.getElementById('cappeInCorrettiva');
+    const attesaCard = document.getElementById('cappeInAttesa');
     
     if (totalCard) totalCard.textContent = totalCappe;
     if (scaduteCard) scaduteCard.textContent = scadute;
     if (prossimeCard) prossimeCard.textContent = prossime;
+    if (correttivaCard) correttivaCard.textContent = inCorrettiva;
+    if (attesaCard) attesaCard.textContent = inAttesa;
 }
 
 // Renderizza tabella
