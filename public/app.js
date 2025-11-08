@@ -485,9 +485,33 @@ function handleSearch(e) {
 }
 
 // Aggiorna dati
+// Aggiorna dati mantenendo i filtri
 function refreshData() {
     showNotification('Aggiornamento dati...', 'success');
-    loadCappe();
+    
+    // Salva il valore corrente della ricerca
+    const currentSearch = searchInput.value;
+    
+    // Salva i parametri URL (filtri dalla dashboard)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSedeFiltro = urlParams.get('sede');
+    const hasCorrettivaFiltro = urlParams.get('correttiva');
+    const hasManutenzione = urlParams.get('manutenzione');
+    
+    // Ricarica i dati
+    loadCappe().then(() => {
+        // Riapplica i filtri
+        if (hasSedeFiltro || hasCorrettivaFiltro || hasManutenzione) {
+            // Riapplica filtri da URL
+            applyUrlFilters();
+        } else if (currentSearch) {
+            // Riapplica ricerca manuale
+            searchInput.value = currentSearch;
+            handleSearch({ target: { value: currentSearch } });
+        }
+        
+        showNotification('Dati aggiornati! Filtro mantenuto.', 'success');
+    });
 }
 
 // Apri pagina esploso
