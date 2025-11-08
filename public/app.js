@@ -137,10 +137,48 @@ async function loadCappe() {
     }
 }
 
+// Aggiorna statistiche con i dati filtrati
+function updateFilteredStats(data) {
+    // Totale cappe visibili
+    const totalCappe = data.length;
+    
+    // Calcola manutenzioni scadute
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scadute = data.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) return false;
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
+        return dataProx < today;
+    }).length;
+    
+    // Calcola manutenzioni prossime (30 giorni)
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    const prossime = data.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) return false;
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
+        return dataProx >= today && dataProx <= in30Days;
+    }).length;
+    
+    // Aggiorna le card
+    const totalCard = document.querySelector('.stats .stat-card:nth-child(1) p');
+    const scaduteCard = document.querySelector('.stats .stat-card:nth-child(2) p');
+    const prossimeCard = document.querySelector('.stats .stat-card:nth-child(3) p');
+    
+    if (totalCard) totalCard.textContent = totalCappe;
+    if (scaduteCard) scaduteCard.textContent = scadute;
+    if (prossimeCard) prossimeCard.textContent = prossime;
+}
+
 // Renderizza tabella
 function renderTable(data) {
     // Salva le cappe filtrate per l'export
     filteredCappe = data;
+    
+    // Aggiorna statistiche filtrate
+    updateFilteredStats(data);
     
     if (data.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="12" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
@@ -280,6 +318,7 @@ async function editCappa(id) {
         document.getElementById('sede').value = cappa.sede;
         document.getElementById('reparto').value = cappa.reparto;
         document.getElementById('locale').value = cappa.locale;
+        document.getElementById('statoCorrettiva').value = cappa.stato_correttiva || 'Operativa';
         document.getElementById('dataManutenzione').value = cappa.data_manutenzione || '';
         document.getElementById('dataProssimaManutenzione').value = cappa.data_prossima_manutenzione || '';
         
@@ -401,6 +440,7 @@ async function handleSubmit(e) {
         sede: document.getElementById('sede').value,
         reparto: document.getElementById('reparto').value,
         locale: document.getElementById('locale').value,
+        stato_correttiva: document.getElementById('statoCorrettiva').value,
         data_manutenzione: document.getElementById('dataManutenzione').value || null,
         data_prossima_manutenzione: document.getElementById('dataProssimaManutenzione').value || null
     };
