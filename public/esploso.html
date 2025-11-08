@@ -261,6 +261,22 @@
 
             <!-- Dettagli Tecnici -->
             <form id="esplosoForm">
+                <!-- Dati Targa -->
+                <div class="dettagli-section">
+                    <h3>🏷️ Dati di Targa</h3>
+                    <div class="detail-group">
+                        <label>Informazioni Targa:</label>
+                        <textarea id="datiTarga" placeholder="Inserisci dati della targa identificativa..."></textarea>
+                    </div>
+                    <div class="detail-group">
+                        <div class="photo-upload">
+                            <label for="fotoTarga" class="photo-upload-label">📷 Carica Foto Targa</label>
+                            <input type="file" id="fotoTarga" accept="image/*" multiple>
+                        </div>
+                        <div class="photo-preview" id="preview-fotoTarga"></div>
+                    </div>
+                </div>
+
                 <!-- Foto Cappa -->
                 <div class="dettagli-section">
                     <h3>📸 Foto Cappa</h3>
@@ -349,6 +365,15 @@
                             <label>Ore di Lavoro Filtri:</label>
                             <input type="number" id="oreLavoroFiltri" placeholder="0" min="0">
                         </div>
+                    </div>
+                </div>
+
+                <!-- Altri Dati -->
+                <div class="dettagli-section">
+                    <h3>📝 Altri Dati</h3>
+                    <div class="detail-group">
+                        <label>Note aggiuntive e altre informazioni:</label>
+                        <textarea id="altriDati" placeholder="Inserisci qualsiasi altra informazione utile..." style="min-height: 120px;"></textarea>
                     </div>
                 </div>
 

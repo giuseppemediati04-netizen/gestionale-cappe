@@ -5,6 +5,7 @@ const API_URL = (window.location.hostname === 'localhost' || window.location.hos
 
 let cappaId = null;
 let uploadedPhotos = {
+    fotoTarga: [],
     fotoCappa: [],
     fotoMotore: [],
     fotoFiltri: [],
@@ -54,12 +55,14 @@ async function loadCappaData() {
                 const esplosoData = await esplosoResponse.json();
                 const esploso = esplosoData.data;
                 
+                document.getElementById('datiTarga').value = esploso.dati_targa || '';
                 document.getElementById('datiMotore').value = esploso.dati_motore || '';
                 document.getElementById('datiFiltri').value = esploso.dati_filtri || '';
                 document.getElementById('datiLuceUV').value = esploso.dati_luce_uv || '';
                 document.getElementById('datiLuceBianca').value = esploso.dati_luce_bianca || '';
                 document.getElementById('oreLavoroCappa').value = esploso.ore_lavoro_cappa || 0;
                 document.getElementById('oreLavoroFiltri').value = esploso.ore_lavoro_filtri || 0;
+                document.getElementById('altriDati').value = esploso.altri_dati || '';
                 
                 // Carica foto esistenti (se implementato)
                 // TODO: implementare caricamento foto salvate
@@ -79,7 +82,7 @@ async function loadCappaData() {
 
 // Setup gestori upload foto
 function setupPhotoHandlers() {
-    const photoInputs = ['fotoCappa', 'fotoMotore', 'fotoFiltri', 'fotoLuceUV', 'fotoLuceBianca'];
+    const photoInputs = ['fotoTarga', 'fotoCappa', 'fotoMotore', 'fotoFiltri', 'fotoLuceUV', 'fotoLuceBianca'];
     
     photoInputs.forEach(inputId => {
         const input = document.getElementById(inputId);
@@ -122,12 +125,15 @@ document.getElementById('esplosoForm').addEventListener('submit', async (e) => {
     
     const esplosoData = {
         cappa_id: cappaId,
+        dati_targa: document.getElementById('datiTarga').value,
         dati_motore: document.getElementById('datiMotore').value,
         dati_filtri: document.getElementById('datiFiltri').value,
         dati_luce_uv: document.getElementById('datiLuceUV').value,
         dati_luce_bianca: document.getElementById('datiLuceBianca').value,
         ore_lavoro_cappa: parseInt(document.getElementById('oreLavoroCappa').value) || 0,
         ore_lavoro_filtri: parseInt(document.getElementById('oreLavoroFiltri').value) || 0,
+        altri_dati: document.getElementById('altriDati').value,
+        foto_targa: JSON.stringify(uploadedPhotos.fotoTarga),
         foto_cappa: JSON.stringify(uploadedPhotos.fotoCappa),
         foto_motore: JSON.stringify(uploadedPhotos.fotoMotore),
         foto_filtri: JSON.stringify(uploadedPhotos.fotoFiltri),
