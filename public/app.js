@@ -50,6 +50,7 @@ closeImport.addEventListener('click', closeImportModalHandler);
 document.getElementById('btnCancelImport').addEventListener('click', closeImportModalHandler);
 document.getElementById('btnStartImport').addEventListener('click', startImport);
 btnExport.addEventListener('click', exportExcel);
+document.getElementById('btnExportInterventi').addEventListener('click', exportInterventi);
 form.addEventListener('submit', handleSubmit);
 searchInput.addEventListener('input', handleSearch);
 
@@ -653,6 +654,32 @@ function exportExcelWithXLSX(data) {
     
     XLSX.writeFile(wb, fileName);
     showNotification(`Export completato: ${data.length} cappe esportate`, 'success');
+}
+
+// Export Interventi
+async function exportInterventi() {
+    try {
+        showNotification('Preparazione export interventi...', 'info');
+        
+        const response = await fetch(`${API_URL}/interventi/export`);
+        const blob = await response.blob();
+        
+        // Crea link per download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().split('T')[0];
+        a.download = `interventi_completi_${date}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showNotification('Export interventi completato!', 'success');
+    } catch (error) {
+        console.error('Errore export interventi:', error);
+        showNotification('Errore durante l\'export interventi', 'error');
+    }
 }
 
 // Mostra notifica

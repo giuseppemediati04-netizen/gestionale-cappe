@@ -133,6 +133,177 @@
             color: #333;
         }
 
+        /* Storico Collapsible */
+        .storico-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .storico-toggle {
+            padding: 18px 25px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .storico-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .storico-title {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .storico-badge {
+            background: rgba(255,255,255,0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .storico-arrow {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .storico-arrow.open {
+            transform: rotate(180deg);
+        }
+
+        .storico-content {
+            background: white;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.4s ease;
+        }
+
+        .storico-content.open {
+            max-height: 500px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .interventi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 15px;
+        }
+
+        .intervento-card-storico {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .intervento-card-storico:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .intervento-card-storico.sospeso {
+            border-left-color: #ffc107;
+        }
+
+        .intervento-card-storico.attesa {
+            border-left-color: #dc3545;
+        }
+
+        .intervento-header-storico {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .ticket-number-storico {
+            font-weight: 700;
+            color: #fd7e14;
+            font-size: 13px;
+        }
+
+        .stato-badge-storico {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .stato-chiuso {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .stato-sospeso {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .stato-attesa {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .intervento-date-storico {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .intervento-problema-storico {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .intervento-note-storico {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .intervento-footer-storico {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+        }
+
+        .intervento-tecnico-storico {
+            color: #999;
+            font-style: italic;
+        }
+
+        .intervento-costo-storico {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .no-interventi {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+        }
+
         .section {
             margin-bottom: 30px;
             border: 1px solid #dee2e6;
@@ -444,6 +615,23 @@
                     <div class="anagrafica-item">
                         <span class="anagrafica-label">N° Ticket</span>
                         <span class="anagrafica-value" id="numero-ticket" style="color: #fd7e14;">Automatico</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storico Interventi Collassabile -->
+            <div class="storico-section">
+                <div class="storico-toggle" onclick="toggleStorico()">
+                    <div class="storico-title">
+                        📚 Storico Interventi
+                        <span class="storico-badge" id="storico-count">0</span>
+                    </div>
+                    <div class="storico-arrow" id="storico-arrow">▼</div>
+                </div>
+                
+                <div class="storico-content" id="storico-content">
+                    <div class="interventi-grid" id="interventi-grid">
+                        <div class="no-interventi">Nessun intervento precedente</div>
                     </div>
                 </div>
             </div>

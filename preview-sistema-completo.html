@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Sistema Completo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 15px;
+        }
+        
+        .header p {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .feature-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        
+        .feature-box:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .feature-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .feature-desc {
+            color: #666;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        
+        .feature-list {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #555;
+        }
+        
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: 700;
+        }
+        
+        .demo-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .demo-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .demo-screenshot {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .screenshot-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .mockup-storico-closed {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 25px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        
+        .mockup-storico-closed:hover {
+            opacity: 0.9;
+        }
+        
+        .mockup-storico-open {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #667eea;
+        }
+        
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .mini-card {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            font-size: 13px;
+        }
+        
+        .mini-card.sospeso {
+            border-left-color: #ffc107;
+        }
+        
+        .mini-card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .mini-ticket {
+            color: #fd7e14;
+            font-weight: 700;
+        }
+        
+        .mini-stato {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .mini-problema {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        
+        .mini-note {
+            color: #666;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .excel-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        
+        .excel-table th,
+        .excel-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+            font-size: 13px;
+        }
+        
+        .excel-table th {
+            background: #28a745;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .excel-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .action-box {
+            background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .action-box h3 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .action-box p {
+            font-size: 18px;
+            opacity: 0.95;
+            margin-bottom: 25px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #fd7e14;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: transform 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Sistema Interventi COMPLETO</h1>
+            <p>Storico Collassabile + Export Excel con 35 colonne</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-box">
+                <div class="feature-icon">📚</div>
+                <div class="feature-title">Storico Collassabile</div>
+                <div class="feature-desc">
+                    Vedi tutti gli interventi passati della cappa direttamente nella pagina correttiva.
+                </div>
+                <ul class="feature-list">
+                    <li>Opzione 2: Griglia carte responsive</li>
+                    <li>Expand/collapse con un click</li>
+                    <li>Card colorate per stato</li>
+                    <li>Tutti i dettagli: ticket, problema, note, tecnico, costo</li>
+                    <li>Caricamento automatico</li>
+                </ul>
+            </div>
+            
+            <div class="feature-box">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">Export Excel Completo</div>
+                <div class="feature-desc">
+                    Esporta tutti gli interventi in Excel con TUTTE le voci del rapportino.
+                </div>
+                <ul class="feature-list">
+                    <li>35 colonne totali</li>
+                    <li>Segnalazione completa</li>
+                    <li>Diagnosi dettagliata</li>
+                    <li>Intervento con ricambi</li>
+                    <li>Verifica e parametri</li>
+                    <li>Download automatico</li>
+                </ul>
+            </div>
+            
+            <div class="feature-box">
+                <div class="feature-icon">🔧</div>
+                <div class="feature-title">3 Pulsanti Stati</div>
+                <div class="feature-desc">
+                    Chiudi, Sospendi o metti In Attesa con aggiornamento automatico cappa.
+                </div>
+                <ul class="feature-list">
+                    <li>✅ Chiudi → Cappa Operativa</li>
+                    <li>⏸️ Sospendi → In Correttiva</li>
+                    <li>🔧 Attesa → In Attesa Riparazione</li>
+                    <li>Aggiornamento automatico dashboard</li>
+                    <li>Reload lista cappe</li>
+                </ul>
+            </div>
+            
+            <div class="feature-box">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Già Implementato!</div>
+                <div class="feature-desc">
+                    Non devi modificare nulla! È tutto già pronto e funzionante nel codice.
+                </div>
+                <ul class="feature-list">
+                    <li>Sostituisci 5 file</li>
+                    <li>Commit e push</li>
+                    <li>Rideploy su Render</li>
+                    <li>Funziona immediatamente!</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <div class="demo-title">📸 Come Appare lo Storico Collassabile</div>
+            
+            <div class="demo-screenshot">
+                <div class="screenshot-title">1. Storico Chiuso (Default)</div>
+                <div class="mockup-storico-closed">
+                    <div>
+                        <strong style="font-size: 18px;">📚 Storico Interventi</strong>
+                        <span style="background: rgba(255,255,255,0.3); padding: 4px 12px; border-radius: 20px; margin-left: 15px; font-size: 14px;">3</span>
+                    </div>
+                    <div style="font-size: 20px;">▼</div>
+                </div>
+                <p style="color: #666; font-style: italic;">← Clicca per espandere</p>
+            </div>
+            
+            <div class="demo-screenshot">
+                <div class="screenshot-title">2. Storico Aperto (Espanso)</div>
+                <div class="mockup-storico-open">
+                    <div class="cards-grid">
+                        <div class="mini-card">
+                            <div class="mini-card-header">
+                                <span class="mini-ticket">CORR-002-841256</span>
+                                <span class="mini-stato">✅ Chiuso</span>
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-bottom: 6px;">📅 15 Ottobre 2025</div>
+                            <div class="mini-problema">Filtro intasato</div>
+                            <div class="mini-note">
+                                Sostituzione filtro HEPA. Verificata velocità aria 0.45 m/s...
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: #999;">
+                                👨‍🔧 Marco Rossi • <span style="color: #28a745;">€ 145</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mini-card sospeso">
+                            <div class="mini-card-header">
+                                <span class="mini-ticket">CORR-002-738492</span>
+                                <span class="mini-stato" style="background: #fff3cd; color: #856404;">⏸️ Sospeso</span>
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-bottom: 6px;">📅 03 Settembre 2025</div>
+                            <div class="mini-problema">Motore rumoroso</div>
+                            <div class="mini-note">
+                                Motore da sostituire. Ordinato ricambio cod. MTR-8945...
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: #999;">
+                                👨‍🔧 Luca Bianchi • <span style="color: #28a745;">€ 380</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mini-card">
+                            <div class="mini-card-header">
+                                <span class="mini-ticket">CORR-002-629384</span>
+                                <span class="mini-stato">✅ Chiuso</span>
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-bottom: 6px;">📅 20 Agosto 2025</div>
+                            <div class="mini-problema">Luce UV non funzionante</div>
+                            <div class="mini-note">
+                                Sostituita lampada UV 36W. Test illuminamento 850 lux OK...
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: #999;">
+                                👨‍🔧 Marco Rossi • <span style="color: #28a745;">€ 95</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="demo-screenshot">
+                <div class="screenshot-title">3. Preview Export Excel (35 Colonne)</div>
+                <div class="excel-preview">
+                    <table class="excel-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Stato</th>
+                                <th>Inventario</th>
+                                <th>Data</th>
+                                <th>Problema</th>
+                                <th>Attività</th>
+                                <th>Tecnico</th>
+                                <th>Costo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>CORR-002-841256</td>
+                                <td>Chiuso</td>
+                                <td>002</td>
+                                <td>15/10/2025</td>
+                                <td>Filtro intasato</td>
+                                <td>Sostituzione filtro HEPA...</td>
+                                <td>Marco Rossi</td>
+                                <td>€ 145,00</td>
+                            </tr>
+                            <tr>
+                                <td>CORR-002-738492</td>
+                                <td>Sospeso</td>
+                                <td>002</td>
+                                <td>03/09/2025</td>
+                                <td>Motore rumoroso</td>
+                                <td>Motore da sostituire...</td>
+                                <td>Luca Bianchi</td>
+                                <td>€ 380,00</td>
+                            </tr>
+                            <tr>
+                                <td>CORR-002-629384</td>
+                                <td>Chiuso</td>
+                                <td>002</td>
+                                <td>20/08/2025</td>
+                                <td>Luce UV</td>
+                                <td>Sostituita lampada UV...</td>
+                                <td>Marco Rossi</td>
+                                <td>€ 95,00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 15px; text-align: center; color: #666; font-style: italic;">
+                        + 27 colonne aggiuntive: Richiedente, Contatto, Priorità, Diagnosi, Ricambi, Test, Parametri, ecc.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="action-box">
+            <h3>🚀 Pronto per il Deploy!</h3>
+            <p>Scarica il pacchetto completo e aggiorna il sistema in 5 minuti</p>
+            <div style="font-size: 16px; opacity: 0.9; margin-bottom: 20px;">
+                ✅ Storico Collassabile<br>
+                ✅ Export Excel 35 Colonne<br>
+                ✅ 3 Pulsanti Stati<br>
+                ✅ Tutto Già Funzionante
+            </div>
+        </div>
+    </div>
+</body>
+</html>

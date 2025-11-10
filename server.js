@@ -894,6 +894,203 @@ app.delete('/api/interventi/:id', (req, res) => {
     });
 });
 
+// GET - Export Interventi Excel
+app.get('/api/interventi/export', async (req, res) => {
+    try {
+        const ExcelJS = require('exceljs');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Interventi');
+        
+        // Definisci colonne
+        worksheet.columns = [
+            { header: 'ID', key: 'id', width: 8 },
+            { header: 'Numero Ticket', key: 'numero_ticket', width: 20 },
+            { header: 'Stato', key: 'stato', width: 15 },
+            
+            // Dati Cappa
+            { header: 'Inventario', key: 'inventario', width: 12 },
+            { header: 'Matricola', key: 'matricola', width: 18 },
+            { header: 'Tipologia', key: 'tipologia', width: 15 },
+            { header: 'Produttore', key: 'produttore', width: 15 },
+            { header: 'Modello', key: 'modello', width: 15 },
+            { header: 'Sede', key: 'sede', width: 12 },
+            { header: 'Reparto', key: 'reparto', width: 15 },
+            { header: 'Locale', key: 'locale', width: 12 },
+            
+            // Segnalazione
+            { header: 'Data Richiesta', key: 'data_richiesta', width: 18 },
+            { header: 'Richiedente', key: 'richiedente', width: 20 },
+            { header: 'Contatto', key: 'contatto_richiedente', width: 20 },
+            { header: 'Problema Riscontrato', key: 'problema_riscontrato', width: 35 },
+            { header: 'Priorità', key: 'priorita', width: 12 },
+            { header: 'Cappa Ferma', key: 'cappa_ferma', width: 12 },
+            
+            // Diagnosi
+            { header: 'Data Sopralluogo', key: 'data_sopralluogo', width: 18 },
+            { header: 'Tecnico Diagnostico', key: 'tecnico_diagnostico', width: 20 },
+            { header: 'Causa Guasto', key: 'causa_guasto', width: 35 },
+            { header: 'Componenti Danneggiati', key: 'componenti_danneggiati', width: 35 },
+            { header: 'Preventivo (€)', key: 'preventivo', width: 12 },
+            
+            // Intervento
+            { header: 'Data Inizio', key: 'data_inizio', width: 15 },
+            { header: 'Data Fine', key: 'data_fine', width: 15 },
+            { header: 'Tecnici Esecutori', key: 'tecnici', width: 25 },
+            { header: 'Attività Svolte', key: 'attivita_svolte', width: 40 },
+            { header: 'Ricambi (Dettaglio)', key: 'ricambi_dettaglio', width: 40 },
+            { header: 'Ore Lavoro', key: 'ore_lavoro', width: 12 },
+            { header: 'Costo Totale (€)', key: 'costo_totale', width: 15 },
+            
+            // Verifica
+            { header: 'Test Eseguiti', key: 'test_eseguiti', width: 35 },
+            { header: 'Velocità Aria (m/s)', key: 'param_velocita', width: 15 },
+            { header: 'Pressione (Pa)', key: 'param_pressione', width: 15 },
+            { header: 'Illuminamento (lux)', key: 'param_illuminamento', width: 15 },
+            { header: 'Esito', key: 'esito', width: 15 },
+            { header: 'Garanzia (gg)', key: 'garanzia_giorni', width: 12 },
+            { header: 'Prossima Manutenzione', key: 'prossima_manutenzione', width: 18 },
+            { header: 'Note Finali', key: 'note_finali', width: 40 },
+            
+            // Metadati
+            { header: 'Creato il', key: 'created_at', width: 18 },
+            { header: 'Aggiornato il', key: 'updated_at', width: 18 }
+        ];
+        
+        // Stile header
+        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF667eea' }
+        };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+        
+        // Query con JOIN per prendere anche i dati della cappa
+        const sql = `
+            SELECT 
+                i.*,
+                c.inventario, c.matricola, c.tipologia, c.produttore, c.modello,
+                c.sede, c.reparto, c.locale
+            FROM interventi_correttivi i
+            LEFT JOIN cappe c ON i.cappa_id = c.id
+            ORDER BY i.created_at DESC
+        `;
+        
+        db.all(sql, [], (err, rows) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            // Processa ogni riga
+            rows.forEach(row => {
+                // Parse JSON fields
+                let ricambiDettaglio = '';
+                if (row.ricambi) {
+                    try {
+                        const ricambi = JSON.parse(row.ricambi);
+                        ricambiDettaglio = ricambi.map(r => 
+                            `${r.codice} - ${r.descrizione} (Q.tà: ${r.quantita}, €${r.prezzo})`
+                        ).join('; ');
+                    } catch (e) {
+                        ricambiDettaglio = row.ricambi;
+                    }
+                }
+                
+                let paramVelocita = '', paramPressione = '', paramIlluminamento = '';
+                if (row.parametri_verificati) {
+                    try {
+                        const params = JSON.parse(row.parametri_verificati);
+                        paramVelocita = params.velocita || '';
+                        paramPressione = params.pressione || '';
+                        paramIlluminamento = params.illuminamento || '';
+                    } catch (e) {}
+                }
+                
+                worksheet.addRow({
+                    id: row.id,
+                    numero_ticket: row.numero_ticket,
+                    stato: row.stato,
+                    
+                    // Cappa
+                    inventario: row.inventario,
+                    matricola: row.matricola,
+                    tipologia: row.tipologia,
+                    produttore: row.produttore,
+                    modello: row.modello,
+                    sede: row.sede,
+                    reparto: row.reparto,
+                    locale: row.locale,
+                    
+                    // Segnalazione
+                    data_richiesta: row.data_richiesta,
+                    richiedente: row.richiedente,
+                    contatto_richiedente: row.contatto_richiedente,
+                    problema_riscontrato: row.problema_riscontrato,
+                    priorita: row.priorita,
+                    cappa_ferma: row.cappa_ferma ? 'Sì' : 'No',
+                    
+                    // Diagnosi
+                    data_sopralluogo: row.data_sopralluogo,
+                    tecnico_diagnostico: row.tecnico_diagnostico,
+                    causa_guasto: row.causa_guasto,
+                    componenti_danneggiati: row.componenti_danneggiati,
+                    preventivo: row.preventivo,
+                    
+                    // Intervento
+                    data_inizio: row.data_inizio,
+                    data_fine: row.data_fine,
+                    tecnici: row.tecnici,
+                    attivita_svolte: row.attivita_svolte,
+                    ricambi_dettaglio: ricambiDettaglio,
+                    ore_lavoro: row.ore_lavoro,
+                    costo_totale: row.costo_totale,
+                    
+                    // Verifica
+                    test_eseguiti: row.test_eseguiti,
+                    param_velocita: paramVelocita,
+                    param_pressione: paramPressione,
+                    param_illuminamento: paramIlluminamento,
+                    esito: row.esito,
+                    garanzia_giorni: row.garanzia_giorni,
+                    prossima_manutenzione: row.prossima_manutenzione,
+                    note_finali: row.note_finali,
+                    
+                    // Metadati
+                    created_at: row.created_at,
+                    updated_at: row.updated_at
+                });
+            });
+            
+            // Applica bordi e wrap text
+            worksheet.eachRow((row, rowNumber) => {
+                row.eachCell(cell => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (rowNumber > 1) {
+                        cell.alignment = { wrapText: true, vertical: 'top' };
+                    }
+                });
+            });
+            
+            // Invia file
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename=interventi_${new Date().toISOString().split('T')[0]}.xlsx`);
+            
+            workbook.xlsx.write(res).then(() => {
+                res.end();
+            });
+        });
+        
+    } catch (error) {
+        console.error('Errore export interventi:', error);
+        res.status(500).json({ error: 'Errore durante l\'export: ' + error.message });
+    }
+});
+
 // Avvia server
 app.listen(PORT, () => {
     console.log(`Server avviato su http://localhost:${PORT}`);

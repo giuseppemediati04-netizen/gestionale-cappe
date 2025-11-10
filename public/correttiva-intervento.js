@@ -49,10 +49,77 @@ async function loadCappaData() {
         const ticket = `CORR-${cappa.inventario}-${Date.now().toString().slice(-6)}`;
         document.getElementById('numero-ticket').textContent = ticket;
         
+        // Carica storico interventi
+        await loadStorico();
+        
     } catch (error) {
         showNotification('Errore caricamento dati', 'error');
         console.error(error);
     }
+}
+
+// Carica storico interventi
+async function loadStorico() {
+    try {
+        const response = await fetch(`${API_URL}/interventi/cappa/${cappaId}`);
+        const result = await response.json();
+        const interventi = result.data;
+        
+        const count = interventi.length;
+        document.getElementById('storico-count').textContent = count;
+        
+        if (count === 0) {
+            document.getElementById('interventi-grid').innerHTML = '<div class="no-interventi">Nessun intervento precedente</div>';
+            return;
+        }
+        
+        // Renderizza interventi
+        const html = interventi.map(int => {
+            const stato = int.stato || 'Aperto';
+            const statoClass = stato === 'Chiuso' ? 'stato-chiuso' : (stato === 'Sospeso' ? 'stato-sospeso' : 'stato-attesa');
+            const cardClass = stato === 'Sospeso' ? 'sospeso' : (stato === 'In Attesa' ? 'attesa' : '');
+            const statoIcon = stato === 'Chiuso' ? '✅' : (stato === 'Sospeso' ? '⏸️' : '🔧');
+            
+            const dataRichiesta = new Date(int.data_richiesta).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+            const problema = int.problema_riscontrato || 'Nessun problema specificato';
+            const note = int.attivita_svolte || int.nota_finali || 'Nessuna nota';
+            const tecnico = int.tecnici || int.tecnico_diagnostico || 'Non specificato';
+            const costo = int.costo_totale ? `€ ${parseFloat(int.costo_totale).toFixed(2)}` : '';
+            
+            return `
+                <div class="intervento-card-storico ${cardClass}">
+                    <div class="intervento-header-storico">
+                        <span class="ticket-number-storico">${int.numero_ticket || '#' + int.id}</span>
+                        <span class="stato-badge-storico ${statoClass}">${statoIcon} ${stato}</span>
+                    </div>
+                    <div class="intervento-date-storico">📅 ${dataRichiesta}</div>
+                    <div class="intervento-problema-storico">${problema.substring(0, 50)}${problema.length > 50 ? '...' : ''}</div>
+                    <div class="intervento-note-storico">
+                        ${note.substring(0, 150)}${note.length > 150 ? '...' : ''}
+                    </div>
+                    <div class="intervento-footer-storico">
+                        <span class="intervento-tecnico-storico">👨‍🔧 ${tecnico}</span>
+                        ${costo ? `<span class="intervento-costo-storico">${costo}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        document.getElementById('interventi-grid').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Errore caricamento storico:', error);
+        document.getElementById('interventi-grid').innerHTML = '<div class="no-interventi">Errore caricamento storico</div>';
+    }
+}
+
+// Toggle storico
+function toggleStorico() {
+    const content = document.getElementById('storico-content');
+    const arrow = document.getElementById('storico-arrow');
+    
+    content.classList.toggle('open');
+    arrow.classList.toggle('open');
 }
 
 // Inizializza canvas firme
