@@ -57,13 +57,31 @@
             background: rgba(255,255,255,0.3);
         }
 
-        .btn-save {
+        .btn-chiudi {
             background: #28a745;
             color: white;
         }
 
-        .btn-save:hover {
+        .btn-chiudi:hover {
             background: #218838;
+        }
+
+        .btn-sospendi {
+            background: #ffc107;
+            color: white;
+        }
+
+        .btn-sospendi:hover {
+            background: #e0a800;
+        }
+
+        .btn-attesa {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-attesa:hover {
+            background: #c82333;
         }
 
         .btn-print {
@@ -380,7 +398,9 @@
             <div class="header-buttons">
                 <button class="btn btn-back" onclick="window.close()">← Indietro</button>
                 <button class="btn btn-print" onclick="window.print()">🖨️ Stampa PDF</button>
-                <button class="btn btn-save" onclick="salvaIntervento()">💾 Salva</button>
+                <button class="btn btn-chiudi" onclick="chiudiIntervento()">✅ Chiudi Intervento</button>
+                <button class="btn btn-sospendi" onclick="sospendiIntervento()">⏸️ Sospendi</button>
+                <button class="btn btn-attesa" onclick="attesaRiparazione()">🔧 In Attesa Riparazione</button>
             </div>
         </div>
 

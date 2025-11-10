@@ -214,16 +214,8 @@ function rimuoviFoto(tipo, index) {
     });
 }
 
-// Salva intervento
-async function salvaIntervento() {
-    const form = document.getElementById('correttivaForm');
-    
-    if (!form.checkValidity()) {
-        showNotification('Compila i campi obbligatori', 'error');
-        form.reportValidity();
-        return;
-    }
-    
+// Prepara dati intervento
+function preparaIntervento() {
     // Raccogli ricambi
     const ricambiRows = Array.from(document.querySelectorAll('#ricambiBody tr'));
     const ricambi = ricambiRows.map(row => ({
@@ -241,7 +233,7 @@ async function salvaIntervento() {
         illuminamento: document.getElementById('paramIlluminamento').value
     };
     
-    const data = {
+    return {
         cappa_id: cappaId,
         numero_ticket: document.getElementById('numero-ticket').textContent,
         
@@ -279,10 +271,23 @@ async function salvaIntervento() {
         prossima_manutenzione: document.getElementById('prossimaManutenzione').value,
         note_finali: document.getElementById('noteFinali').value,
         firma_tecnico: firmaTecnicoCanvas.toDataURL(),
-        firma_cliente: firmaClienteCanvas.toDataURL(),
-        
-        stato: document.getElementById('esito').value === 'OK' ? 'Chiuso' : 'Aperto'
+        firma_cliente: firmaClienteCanvas.toDataURL()
     };
+}
+
+// Funzione generica per salvare intervento con stato specifico
+async function salvaConStato(statoIntervento, statoCorrettivaCappa, messaggio) {
+    const form = document.getElementById('correttivaForm');
+    
+    if (!form.checkValidity()) {
+        showNotification('Compila i campi obbligatori', 'error');
+        form.reportValidity();
+        return;
+    }
+    
+    const data = preparaIntervento();
+    data.stato = statoIntervento;
+    data.stato_correttiva_cappa = statoCorrettivaCappa;
     
     try {
         const response = await fetch(`${API_URL}/interventi`, {
@@ -292,8 +297,9 @@ async function salvaIntervento() {
         });
         
         if (response.ok) {
-            showNotification('✅ Intervento salvato con successo!', 'success');
+            showNotification(messaggio, 'success');
             setTimeout(() => {
+                window.opener.location.reload(); // Ricarica la pagina principale
                 window.close();
             }, 1500);
         } else {
@@ -304,6 +310,21 @@ async function salvaIntervento() {
         showNotification('Errore di connessione', 'error');
         console.error(error);
     }
+}
+
+// Chiudi Intervento - Cappa torna Operativa
+async function chiudiIntervento() {
+    await salvaConStato('Chiuso', 'Operativa', '✅ Intervento chiuso! Cappa operativa');
+}
+
+// Sospendi - Cappa In Correttiva
+async function sospendiIntervento() {
+    await salvaConStato('Sospeso', 'In Correttiva', '⏸️ Intervento sospeso');
+}
+
+// In Attesa Riparazione
+async function attesaRiparazione() {
+    await salvaConStato('In Attesa', 'In Attesa Riparazione', '🔧 Intervento in attesa riparazione');
 }
 
 // Notifiche

@@ -1,293 +1,238 @@
-# 🔧 Sistema Interventi Correttivi - MODELLO 2 COMPLETO
+# 🔧 Sistema Interventi - Aggiornamento Stati Cappa
 
-## 📦 Cosa ho creato:
+## 📍 Dove vengono salvati gli interventi?
 
-### ✅ **1. Database**
-- Nuova tabella `interventi_correttivi` con 31 campi
-- Migrazione automatica all'avvio
-
-### ✅ **2. Pulsante Correttiva**
-- Nuovo pulsante **🔧 arancione** nella tabella cappe
-- Posizione: tra Esploso e Elimina
-
-### ✅ **3. Pagina Intervento Correttivo**
-- **Modello 2 - Standard Bilanciato**
-- 4 Sezioni complete:
-  1. 🔴 Segnalazione
-  2. 🔍 Diagnosi
-  3. 🔧 Intervento
-  4. ✅ Verifica e Chiusura
-
-### ✅ **4. Funzionalità Implementate**
-- ✅ Anagrafica cappa (read-only)
-- ✅ Numero ticket automatico
-- ✅ Gestione ricambi dinamica (aggiungi/rimuovi righe)
-- ✅ Calcolo automatico totale ricambi
-- ✅ Upload foto PRIMA/DOPO (multiple)
-- ✅ Firme digitali (tecnico + cliente) con canvas
-- ✅ Parametri verificati (velocità, pressione, illuminamento)
-- ✅ Stampa/PDF del rapporto
-- ✅ API complete per CRUD interventi
+### **Database SQLite:**
+- **File:** `/data/database.db` (sul server)
+- **Tabella:** `interventi_correttivi`
+- **⚠️ IMPORTANTE:** Il database è **temporaneo** su Render
+  - Si cancella ad ogni deploy
+  - **SOLUZIONE:** Esporta Excel prima di ogni deploy!
 
 ---
 
-## 🎯 Pulsanti Azione Finali:
+## ✅ Modifiche Applicate:
+
+### **1. Rimosso pulsante "💾 Salva"**
+
+### **2. Aggiunti 3 nuovi pulsanti:**
+
+| Pulsante | Colore | Azione Intervento | Stato Cappa Risultante |
+|----------|--------|-------------------|------------------------|
+| ✅ **Chiudi Intervento** | 🟢 Verde | Stato = "Chiuso" | **Operativa** |
+| ⏸️ **Sospendi** | 🟡 Giallo | Stato = "Sospeso" | **In Correttiva** |
+| 🔧 **In Attesa Riparazione** | 🔴 Rosso | Stato = "In Attesa" | **In Attesa Riparazione** |
+
+---
+
+## 🔄 Come Funziona:
+
+### **Quando clicchi un pulsante:**
+
+1. **Valida il form** (campi obbligatori)
+2. **Salva l'intervento** nel database `interventi_correttivi`
+3. **Aggiorna lo stato_correttiva** della cappa nella tabella `cappe`
+4. **Ricarica la lista cappe** automaticamente
+5. **Chiude la finestra** intervento
+
+### **Esempio pratico:**
 
 ```
-✏️ Modifica | 🔧 Esploso | 🔧 Correttiva ← NUOVO! | 🗑️ Elimina
-```
-
----
-
-## 📋 Struttura Form Correttiva:
-
-### **🔴 SEGNALAZIONE**
-- Data/Ora richiesta *
-- Richiedente + Contatto
-- Problema riscontrato *
-- Priorità (Bassa/Media/Alta)
-- Cappa ferma? (Sì/No)
-
-### **🔍 DIAGNOSI**
-- Data sopralluogo
-- Tecnico diagnostico
-- Causa guasto
-- Componenti danneggiati
-- Preventivo (€)
-
-### **🔧 INTERVENTO**
-- Data inizio/fine
-- Tecnici esecutori
-- Attività svolte (dettaglio)
-- **Ricambi:** Tabella dinamica con:
-  - Codice | Descrizione | Q.tà | Prezzo | Totale
-  - Pulsante "+ Aggiungi Ricambio"
-  - Calcolo automatico totale
-- Ore lavoro
-- Costo totale
-- **📷 Foto PRIMA** (caricamento multiplo)
-- **📷 Foto DOPO** (caricamento multiplo)
-
-### **✅ VERIFICA E CHIUSURA**
-- Test eseguiti
-- Parametri verificati:
-  - Velocità aria (m/s)
-  - Pressione (Pa)
-  - Illuminamento (lux)
-- Esito (Risolto/Parziale/Sospeso/Non risolto)
-- Garanzia intervento (giorni)
-- Prossima manutenzione
-- Note finali
-- **✍️ Firma Tecnico** (canvas digitale)
-- **✍️ Firma Cliente** (canvas digitale)
-
----
-
-## 🗄️ Database - Tabella `interventi_correttivi`:
-
-```sql
-CREATE TABLE interventi_correttivi (
-    id INTEGER PRIMARY KEY,
-    cappa_id INTEGER,
-    numero_ticket TEXT UNIQUE,
-    
-    -- Segnalazione (8 campi)
-    data_richiesta TEXT,
-    richiedente TEXT,
-    contatto_richiedente TEXT,
-    problema_riscontrato TEXT,
-    priorita TEXT,
-    cappa_ferma INTEGER,
-    
-    -- Diagnosi (5 campi)
-    data_sopralluogo TEXT,
-    tecnico_diagnostico TEXT,
-    causa_guasto TEXT,
-    componenti_danneggiati TEXT,
-    preventivo REAL,
-    
-    -- Intervento (10 campi)
-    data_inizio TEXT,
-    data_fine TEXT,
-    tecnici TEXT,
-    attivita_svolte TEXT,
-    ricambi TEXT (JSON),
-    ore_lavoro REAL,
-    costo_totale REAL,
-    foto_prima TEXT (JSON),
-    foto_dopo TEXT (JSON),
-    
-    -- Verifica (8 campi)
-    test_eseguiti TEXT,
-    parametri_verificati TEXT (JSON),
-    esito TEXT,
-    garanzia_giorni INTEGER,
-    prossima_manutenzione TEXT,
-    note_finali TEXT,
-    firma_tecnico TEXT (base64),
-    firma_cliente TEXT (base64),
-    
-    stato TEXT,
-    created_at DATETIME,
-    updated_at DATETIME
-);
+Cappa 001 stato = "Operativa"
+   ↓
+Apri Correttiva → Compila form → Clicca "⏸️ Sospendi"
+   ↓
+✅ Intervento salvato con stato "Sospeso"
+✅ Cappa 001 stato aggiornato a "In Correttiva"
+✅ Lista cappe si aggiorna automaticamente
+✅ Card "In Correttiva" mostra +1
 ```
 
 ---
 
-## 🚀 API Endpoints:
+## 📊 Stati Cappa e Colori:
 
-| Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| POST | `/api/interventi` | Crea nuovo intervento |
-| GET | `/api/interventi` | Lista tutti gli interventi |
-| GET | `/api/interventi/cappa/:id` | Storico interventi per cappa |
-| GET | `/api/interventi/:id` | Dettaglio intervento |
-| PUT | `/api/interventi/:id` | Aggiorna intervento |
-| DELETE | `/api/interventi/:id` | Elimina intervento |
+| Stato Cappa | Card | Colore Dashboard |
+|-------------|------|------------------|
+| **Operativa** | - | 🟢 Verde |
+| **In Correttiva** | ⚠️ In Correttiva | 🔵 Azzurro |
+| **In Attesa Riparazione** | 🔧 In Attesa | 🔴 Rosso |
 
 ---
 
-## 📝 Come Usare:
+## 🗄️ Modifiche Database:
 
-### **1. Apri Intervento:**
-- Dalla lista cappe, clicca **🔧 Correttiva** (arancione)
-- Si apre nuova finestra con form
-
-### **2. Compila Sezioni:**
-- **Segnalazione:** Inserisci dati richiesta (obbligatori)
-- **Diagnosi:** Dopo sopralluogo, inserisci causa
-- **Intervento:** Durante/dopo lavoro, completa tutto
-- **Verifica:** Test finale e chiusura
-
-### **3. Aggiungi Ricambi:**
-- Clicca "+ Aggiungi Ricambio"
-- Compila: Codice, Descrizione, Q.tà, Prezzo
-- Totale si calcola automaticamente
-- Rimuovi con pulsante "×"
-
-### **4. Carica Foto:**
-- Clicca area "📷 Clicca per caricare foto"
-- Seleziona una o più immagini
-- Vedi anteprima immediata
-- Rimuovi con "×" su ogni foto
-
-### **5. Firma:**
-- Disegna firma con mouse/touch
-- Pulsante "Cancella" per ricominciare
-
-### **6. Salva:**
-- Clicca "💾 Salva"
-- Sistema genera numero ticket automatico
-- Dati salvati nel database
-
-### **7. Stampa PDF:**
-- Clicca "🖨️ Stampa PDF"
-- Salva come PDF per archiviazione
+### **Nessuna modifica alla struttura!**
+- Tabella `interventi_correttivi` rimane uguale
+- Tabella `cappe` rimane uguale (aveva già `stato_correttiva`)
+- **Solo logica backend aggiornata**
 
 ---
 
-## 🔄 Come Aggiornare:
+## 🚀 Come Aggiornare:
 
-### **1. Sostituisci 7 file:**
+### **1. Sostituisci 3 file:**
 ```bash
-cp sistema-correttive/public/app.js public/
-cp sistema-correttive/public/cappe.html public/
-cp sistema-correttive/public/styles.css public/
-cp sistema-correttive/public/dashboard.js public/
-cp sistema-correttive/public/correttiva-intervento.html public/
-cp sistema-correttive/public/correttiva-intervento.js public/
-cp sistema-correttive/server.js .
+cd gestionale-cappe
+cp aggiornamento-stati/public/correttiva-intervento.html public/
+cp aggiornamento-stati/public/correttiva-intervento.js public/
+cp aggiornamento-stati/server.js .
 ```
 
-### **2. Commit:**
-```bash
-git add public/ server.js
-git commit -m "feat: Sistema completo interventi correttivi (Modello 2)"
+### **2. GitHub Desktop:**
+
+**Summary:**
+```
+feat: Pulsanti stato intervento + aggiornamento automatico cappa
 ```
 
 **Description:**
 ```
-- Nuova tabella interventi_correttivi nel database
-- Pulsante Correttiva nella lista cappe
-- Form completo con 4 sezioni: Segnalazione, Diagnosi, Intervento, Verifica
-- Gestione ricambi dinamica con calcolo automatico
-- Upload foto prima/dopo (multiple)
-- Firme digitali tecnico e cliente
-- Stampa/PDF rapporto
-- API complete per CRUD interventi
-- Fix grafico dashboard (rimosso nero)
-- Card In Correttiva colore azzurro
+- Rimosso pulsante "Salva" generico
+- Aggiunti 3 pulsanti: Chiudi/Sospendi/Attesa Riparazione
+- Ogni pulsante aggiorna automaticamente stato_correttiva della cappa
+- Chiudi Intervento → Cappa torna Operativa
+- Sospendi → Cappa In Correttiva
+- In Attesa → Cappa In Attesa Riparazione
+- Lista cappe si aggiorna automaticamente dopo salvataggio
 ```
 
-### **3. Push:**
-```bash
-git push origin main
+### **3. Commit → Push → Rideploy**
+
+---
+
+## ⚠️ RICORDA: Backup Dati!
+
+**PRIMA del deploy:**
+1. **"📊 Esporta Excel"** → Salva file
+2. Deploy su Render
+3. **"📥 Importa Excel"** → Carica file
+
+**Così non perdi gli interventi e le cappe!** ✅
+
+---
+
+## 💡 Comportamento Pulsanti:
+
+### **✅ Chiudi Intervento (Verde)**
+**Quando usare:**
+- Problema risolto completamente
+- Cappa testata e funzionante
+- Cliente soddisfatto
+
+**Risultato:**
+- Intervento: Stato = "Chiuso"
+- Cappa: Stato = "Operativa"
+- Card "In Correttiva": -1
+- Dashboard aggiornata
+
+---
+
+### **⏸️ Sospendi (Giallo)**
+**Quando usare:**
+- In attesa di ricambi
+- Necessita sopralluogo aggiuntivo
+- Cliente deve decidere se procedere
+- Problema non completamente risolto
+
+**Risultato:**
+- Intervento: Stato = "Sospeso"
+- Cappa: Stato = "In Correttiva"
+- Card "In Correttiva": +1
+- Dashboard aggiornata
+
+---
+
+### **🔧 In Attesa Riparazione (Rosso)**
+**Quando usare:**
+- Guasto grave identificato
+- Necessita intervento specializzato
+- Ordine ricambi speciali
+- Cappa non utilizzabile
+
+**Risultato:**
+- Intervento: Stato = "In Attesa"
+- Cappa: Stato = "In Attesa Riparazione"
+- Card "In Attesa Riparazione": +1
+- Dashboard aggiornata
+
+---
+
+## 📋 Flow Completo:
+
+```
+1. Lista Cappe → Clicca "🔧 Correttiva"
+2. Form Intervento si apre
+3. Compila sezioni (Segnalazione, Diagnosi, ecc.)
+4. Scegli l'azione appropriata:
+   
+   A) Problema risolto?
+      → ✅ Chiudi Intervento
+      → Cappa torna Operativa
+   
+   B) Serve tempo/ricambi?
+      → ⏸️ Sospendi
+      → Cappa resta In Correttiva
+   
+   C) Guasto grave?
+      → 🔧 In Attesa Riparazione
+      → Cappa In Attesa Riparazione
+
+5. Sistema salva tutto automaticamente
+6. Finestra si chiude
+7. Lista cappe si aggiorna
+8. Dashboard aggiornata
 ```
 
-### **4. Rideploy su Render**
+---
+
+## 🔍 Verifica Funzionamento:
+
+### **Test rapido:**
+
+1. Apri cappa con stato "Operativa"
+2. Clicca "🔧 Correttiva"
+3. Compila almeno:
+   - Data richiesta
+   - Problema riscontrato
+4. Clicca "⏸️ Sospendi"
+5. **Verifica:**
+   - ✅ Notifica verde "Intervento sospeso"
+   - ✅ Finestra si chiude
+   - ✅ Lista cappe aggiornata
+   - ✅ Cappa mostra stato "In Correttiva"
+   - ✅ Card azzurra incrementata
 
 ---
 
-## ⚠️ IMPORTANTE - Backup Dati:
+## 📊 Stati Database:
 
-**PRIMA di fare deploy:**
-1. Vai su gestionale → "📊 Esporta Excel"
-2. Salva il file
-3. Deploy
-4. Dopo deploy → "📥 Importa Excel"
-5. Carica il file salvato
+### **Tabella `interventi_correttivi`:**
+- `stato` = "Chiuso" | "Sospeso" | "In Attesa"
 
-**Per non perdere più dati:** Considera PostgreSQL permanente!
-
----
-
-## 📊 Prossime Funzionalità (Fase 2):
-
-Le seguenti funzionalità saranno implementate in futuro:
-
-1. **💾 Storico completo** - Lista interventi per ogni cappa
-2. **📊 Statistiche correttive** - Dashboard con costi/tempi
-3. **📧 Email automatiche** - Notifiche su apertura/chiusura
-4. **🔔 Notifiche in-app** - Badge interventi aperti
-5. **📅 Calendario interventi** - Pianificazione visuale
-
----
-
-## 🎨 Colori UI:
-
-- **Pulsante Correttiva:** 🟠 Arancione (#fd7e14)
-- **Header Form:** 🟠 Gradiente arancione
-- **Sezioni:** 🟣 Gradiente viola/blu
-- **Stato:**
-  - ✅ Risolto: Verde
-  - ⚠️ Parziale: Giallo
-  - ⏸️ Sospeso: Grigio
-  - ❌ Non risolto: Rosso
+### **Tabella `cappe`:**
+- `stato_correttiva` = "Operativa" | "In Correttiva" | "In Attesa Riparazione"
 
 ---
 
 ## ✅ Messaggio Commit:
 
 ```
-feat: Sistema completo interventi correttivi (Modello 2)
+feat: Pulsanti stato intervento + aggiornamento automatico cappa
 
-- Nuova tabella database interventi_correttivi (31 campi)
-- Pulsante Correttiva arancione nella lista cappe
-- Form completo 4 sezioni: Segnalazione, Diagnosi, Intervento, Verifica
-- Gestione dinamica ricambi con calcolo automatico totale
-- Upload multiplo foto prima/dopo con anteprima
-- Firme digitali su canvas (tecnico + cliente)
-- Stampa/Salva PDF rapporto completo
-- API REST complete per CRUD interventi
-- Numero ticket generato automaticamente
-- Parametri verificati (velocità, pressione, illuminamento)
-- Fix grafico dashboard (rimosso colore nero undefined)
-- Card In Correttiva cambiata da arancione ad azzurro
+- Rimosso pulsante generico "Salva"
+- Aggiunti 3 pulsanti specifici:
+  • Chiudi Intervento (verde) → Cappa Operativa
+  • Sospendi (giallo) → Cappa In Correttiva
+  • In Attesa Riparazione (rosso) → Cappa In Attesa Riparazione
+- Ogni pulsante salva intervento + aggiorna stato cappa
+- Reload automatico lista cappe dopo salvataggio
+- Notifiche specifiche per ogni azione
+- Dashboard si aggiorna automaticamente
 ```
 
 ---
 
-**Sistema pronto per la produzione!** 🎉
+**Sistema pronto!** 🎉
 
-Ora hai un sistema professionale per gestire tutti gli interventi correttivi con tracciabilità completa, documentazione fotografica e firme digitali!
+Ora gli interventi correttivi sono completamente integrati con lo stato delle cappe!

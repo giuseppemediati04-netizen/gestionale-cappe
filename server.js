@@ -756,7 +756,8 @@ app.post('/api/interventi', (req, res) => {
         causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
         tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
         foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
-        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
+        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato,
+        stato_correttiva_cappa
     } = req.body;
 
     if (!cappa_id || !data_richiesta || !problema_riscontrato) {
@@ -783,9 +784,24 @@ app.post('/api/interventi', (req, res) => {
         if (err) {
             res.status(500).json({ error: err.message });
         } else {
+            const interventoId = this.lastID;
+            
+            // Aggiorna lo stato_correttiva della cappa
+            if (stato_correttiva_cappa) {
+                db.run(
+                    'UPDATE cappe SET stato_correttiva = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    [stato_correttiva_cappa, cappa_id],
+                    (updateErr) => {
+                        if (updateErr) {
+                            console.error('Errore aggiornamento stato cappa:', updateErr);
+                        }
+                    }
+                );
+            }
+            
             res.status(201).json({
                 message: 'Intervento creato con successo',
-                id: this.lastID
+                id: interventoId
             });
         }
     });
