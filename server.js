@@ -28,7 +28,7 @@ function initDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         inventario TEXT NOT NULL,
         tipologia TEXT NOT NULL,
-        matricola TEXT UNIQUE NOT NULL,
+        matricola TEXT UNIQUE,
         produttore TEXT NOT NULL,
         modello TEXT NOT NULL,
         sede TEXT NOT NULL,
@@ -44,6 +44,69 @@ function initDatabase() {
             console.error('Errore creazione tabella cappe:', err);
         } else {
             console.log('Tabella cappe pronta');
+            
+            // Migrazione: rendi matricola opzionale
+            // SQLite non supporta ALTER COLUMN, quindi dobbiamo ricreare la tabella
+            db.get("PRAGMA table_info(cappe)", (err, info) => {
+                if (!err) {
+                    // Controlla se matricola ha ancora NOT NULL
+                    db.all("PRAGMA table_info(cappe)", (err, columns) => {
+                        const matricolaCol = columns.find(c => c.name === 'matricola');
+                        if (matricolaCol && matricolaCol.notnull === 1) {
+                            console.log('Migrazione: rendendo matricola opzionale...');
+                            
+                            // Crea tabella temporanea
+                            db.run(`CREATE TABLE cappe_new (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                inventario TEXT NOT NULL,
+                                tipologia TEXT NOT NULL,
+                                matricola TEXT UNIQUE,
+                                produttore TEXT NOT NULL,
+                                modello TEXT NOT NULL,
+                                sede TEXT NOT NULL,
+                                reparto TEXT NOT NULL,
+                                locale TEXT NOT NULL,
+                                stato_correttiva TEXT DEFAULT 'Operativa',
+                                data_manutenzione TEXT,
+                                data_prossima_manutenzione TEXT,
+                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )`, (err) => {
+                                if (err) {
+                                    console.error('Errore creazione tabella temporanea:', err);
+                                    return;
+                                }
+                                
+                                // Copia dati
+                                db.run(`INSERT INTO cappe_new SELECT * FROM cappe`, (err) => {
+                                    if (err) {
+                                        console.error('Errore copia dati:', err);
+                                        return;
+                                    }
+                                    
+                                    // Elimina vecchia tabella
+                                    db.run(`DROP TABLE cappe`, (err) => {
+                                        if (err) {
+                                            console.error('Errore eliminazione tabella:', err);
+                                            return;
+                                        }
+                                        
+                                        // Rinomina nuova tabella
+                                        db.run(`ALTER TABLE cappe_new RENAME TO cappe`, (err) => {
+                                            if (err) {
+                                                console.error('Errore rinomina tabella:', err);
+                                            } else {
+                                                console.log('✓ Matricola ora è opzionale');
+                                            }
+                                        });
+                                    });
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+            
             // Aggiungi colonna se non esiste (per database esistenti)
             db.run(`ALTER TABLE cappe ADD COLUMN stato_correttiva TEXT DEFAULT 'Operativa'`, (err) => {
                 if (err && !err.message.includes('duplicate column')) {
@@ -216,8 +279,8 @@ app.post('/api/cappe', (req, res) => {
         data_prossima_manutenzione
     } = req.body;
 
-    // Validazione campi obbligatori
-    if (!inventario || !tipologia || !matricola || !produttore || !modello || !sede || !reparto || !locale) {
+    // Validazione campi obbligatori (matricola è opzionale)
+    if (!inventario || !tipologia || !produttore || !modello || !sede || !reparto || !locale) {
         return res.status(400).json({ error: 'Campi obbligatori mancanti' });
     }
 
@@ -227,12 +290,18 @@ app.post('/api/cappe', (req, res) => {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
-        inventario, tipologia, matricola, produttore, modello,
+        inventario, tipologia, matricola || null, produttore, modello,
         sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione
     ], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
-                res.status(400).json({ error: 'Matricola già esistente' });
+                if (err.message.includes('inventario')) {
+                    res.status(400).json({ error: 'Numero inventario già esistente' });
+                } else if (err.message.includes('matricola')) {
+                    res.status(400).json({ error: 'Matricola già esistente' });
+                } else {
+                    res.status(400).json({ error: 'Valore duplicato' });
+                }
             } else {
                 res.status(500).json({ error: err.message });
             }
@@ -269,13 +338,19 @@ app.put('/api/cappe/:id', (req, res) => {
         WHERE id = ?`;
 
     db.run(sql, [
-        inventario, tipologia, matricola, produttore, modello,
+        inventario, tipologia, matricola || null, produttore, modello,
         sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione,
         req.params.id
     ], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
-                res.status(400).json({ error: 'Matricola già esistente' });
+                if (err.message.includes('inventario')) {
+                    res.status(400).json({ error: 'Numero inventario già esistente' });
+                } else if (err.message.includes('matricola')) {
+                    res.status(400).json({ error: 'Matricola già esistente' });
+                } else {
+                    res.status(400).json({ error: 'Valore duplicato' });
+                }
             } else {
                 res.status(500).json({ error: err.message });
             }
