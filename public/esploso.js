@@ -10,7 +10,8 @@ let uploadedPhotos = {
     fotoMotore: [],
     fotoFiltri: [],
     fotoLuceUV: [],
-    fotoLuceBianca: []
+    fotoLuceBianca: [],
+    fotoAltriDati: []
 };
 
 // Carica dati quando la pagina è pronta
@@ -82,7 +83,7 @@ async function loadCappaData() {
 
 // Setup gestori upload foto
 function setupPhotoHandlers() {
-    const photoInputs = ['fotoTarga', 'fotoCappa', 'fotoMotore', 'fotoFiltri', 'fotoLuceUV', 'fotoLuceBianca'];
+    const photoInputs = ['fotoTarga', 'fotoCappa', 'fotoMotore', 'fotoFiltri', 'fotoLuceUV', 'fotoLuceBianca', 'fotoAltriDati'];
     
     photoInputs.forEach(inputId => {
         const input = document.getElementById(inputId);
@@ -138,7 +139,8 @@ document.getElementById('esplosoForm').addEventListener('submit', async (e) => {
         foto_motore: JSON.stringify(uploadedPhotos.fotoMotore),
         foto_filtri: JSON.stringify(uploadedPhotos.fotoFiltri),
         foto_luce_uv: JSON.stringify(uploadedPhotos.fotoLuceUV),
-        foto_luce_bianca: JSON.stringify(uploadedPhotos.fotoLuceBianca)
+        foto_luce_bianca: JSON.stringify(uploadedPhotos.fotoLuceBianca),
+        foto_altri_dati: JSON.stringify(uploadedPhotos.fotoAltriDati)
     };
     
     try {

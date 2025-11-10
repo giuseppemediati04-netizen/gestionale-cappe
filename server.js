@@ -156,6 +156,11 @@ function initDatabase() {
                     console.error('Errore aggiunta altri_dati:', err);
                 }
             });
+            db.run(`ALTER TABLE esploso ADD COLUMN foto_altri_dati TEXT`, (err) => {
+                if (err && !err.message.includes('duplicate column')) {
+                    console.error('Errore aggiunta foto_altri_dati:', err);
+                }
+            });
         }
     });
 }
@@ -501,7 +506,8 @@ app.post('/api/esploso', (req, res) => {
         foto_motore,
         foto_filtri,
         foto_luce_uv,
-        foto_luce_bianca
+        foto_luce_bianca,
+        foto_altri_dati
     } = req.body;
 
     if (!cappa_id) {
@@ -519,14 +525,14 @@ app.post('/api/esploso', (req, res) => {
             const updateSql = `UPDATE esploso SET 
                 dati_targa = ?, dati_motore = ?, dati_filtri = ?, dati_luce_uv = ?, dati_luce_bianca = ?,
                 ore_lavoro_cappa = ?, ore_lavoro_filtri = ?, altri_dati = ?,
-                foto_targa = ?, foto_cappa = ?, foto_motore = ?, foto_filtri = ?, foto_luce_uv = ?, foto_luce_bianca = ?,
+                foto_targa = ?, foto_cappa = ?, foto_motore = ?, foto_filtri = ?, foto_luce_uv = ?, foto_luce_bianca = ?, foto_altri_dati = ?,
                 updated_at = CURRENT_TIMESTAMP
                 WHERE cappa_id = ?`;
             
             db.run(updateSql, [
                 dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
                 ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca,
+                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati,
                 cappa_id
             ], function(err) {
                 if (err) {
@@ -540,13 +546,13 @@ app.post('/api/esploso', (req, res) => {
             const insertSql = `INSERT INTO esploso (
                 cappa_id, dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
                 ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
             
             db.run(insertSql, [
                 cappa_id, dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
                 ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca
+                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati
             ], function(err) {
                 if (err) {
                     res.status(500).json({ error: err.message });

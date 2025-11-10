@@ -224,7 +224,6 @@ function renderTable(data) {
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editCappa(${cappa.id})" title="Modifica">✏️</button>
                         <button class="btn btn-exploded" onclick="openEsploso(${cappa.id})" title="Esploso">🔧</button>
-                        <button class="btn btn-pdf" onclick="apriPDFCorrettiva(${cappa.id})" title="PDF Correttiva">📄</button>
                         <button class="btn btn-delete" onclick="deleteCappa(${cappa.id}, '${cappa.matricola}')" title="Elimina">🗑️</button>
                     </div>
                 </td>
@@ -589,11 +588,6 @@ function refreshData() {
 // Apri pagina esploso
 function openEsploso(id) {
     window.open(`esploso.html?id=${id}`, '_blank', 'width=1200,height=800');
-}
-
-// Apri PDF Correttiva
-function apriPDFCorrettiva(id) {
-    window.open(`correttiva.html?id=${id}`, '_blank', 'width=1000,height=900');
 }
 
 // Export Excel
