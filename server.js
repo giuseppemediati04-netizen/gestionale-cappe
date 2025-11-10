@@ -163,6 +163,60 @@ function initDatabase() {
             });
         }
     });
+    
+    // Tabella interventi correttivi
+    db.run(`CREATE TABLE IF NOT EXISTS interventi_correttivi (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cappa_id INTEGER NOT NULL,
+        numero_ticket TEXT UNIQUE,
+        
+        -- Segnalazione
+        data_richiesta TEXT NOT NULL,
+        richiedente TEXT,
+        contatto_richiedente TEXT,
+        problema_riscontrato TEXT,
+        priorita TEXT DEFAULT 'Media',
+        cappa_ferma INTEGER DEFAULT 0,
+        
+        -- Diagnosi
+        data_sopralluogo TEXT,
+        tecnico_diagnostico TEXT,
+        causa_guasto TEXT,
+        componenti_danneggiati TEXT,
+        preventivo REAL,
+        
+        -- Intervento
+        data_inizio TEXT,
+        data_fine TEXT,
+        tecnici TEXT,
+        attivita_svolte TEXT,
+        ricambi TEXT,
+        ore_lavoro REAL,
+        costo_totale REAL,
+        foto_prima TEXT,
+        foto_dopo TEXT,
+        
+        -- Verifica e Chiusura
+        test_eseguiti TEXT,
+        parametri_verificati TEXT,
+        esito TEXT,
+        garanzia_giorni INTEGER,
+        prossima_manutenzione TEXT,
+        note_finali TEXT,
+        firma_tecnico TEXT,
+        firma_cliente TEXT,
+        
+        stato TEXT DEFAULT 'Aperto',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cappa_id) REFERENCES cappe(id) ON DELETE CASCADE
+    )`, (err) => {
+        if (err) {
+            console.error('Errore creazione tabella interventi_correttivi:', err);
+        } else {
+            console.log('Tabella interventi_correttivi pronta');
+        }
+    });
 }
 
 // ============= API ENDPOINTS =============
@@ -690,6 +744,138 @@ app.post('/api/cappe/import/excel', express.raw({ type: 'application/vnd.openxml
     } catch (error) {
         res.status(400).json({ error: 'Errore nel parsing del file Excel: ' + error.message });
     }
+});
+
+// ============= INTERVENTI CORRETTIVI API =============
+
+// POST - Crea nuovo intervento
+app.post('/api/interventi', (req, res) => {
+    const {
+        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
+        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
+        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
+        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
+        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
+        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
+    } = req.body;
+
+    if (!cappa_id || !data_richiesta || !problema_riscontrato) {
+        return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+    }
+
+    const sql = `INSERT INTO interventi_correttivi (
+        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
+        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
+        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
+        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
+        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
+        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    db.run(sql, [
+        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
+        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
+        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
+        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
+        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
+        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
+    ], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else {
+            res.status(201).json({
+                message: 'Intervento creato con successo',
+                id: this.lastID
+            });
+        }
+    });
+});
+
+// GET - Lista tutti gli interventi
+app.get('/api/interventi', (req, res) => {
+    const sql = `
+        SELECT i.*, c.inventario, c.tipologia, c.sede
+        FROM interventi_correttivi i
+        LEFT JOIN cappe c ON i.cappa_id = c.id
+        ORDER BY i.created_at DESC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else {
+            res.json({ data: rows });
+        }
+    });
+});
+
+// GET - Storico interventi per cappa
+app.get('/api/interventi/cappa/:cappaId', (req, res) => {
+    const sql = `
+        SELECT * FROM interventi_correttivi
+        WHERE cappa_id = ?
+        ORDER BY created_at DESC
+    `;
+    
+    db.all(sql, [req.params.cappaId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else {
+            res.json({ data: rows });
+        }
+    });
+});
+
+// GET - Dettaglio intervento
+app.get('/api/interventi/:id', (req, res) => {
+    const sql = `
+        SELECT i.*, c.*
+        FROM interventi_correttivi i
+        LEFT JOIN cappe c ON i.cappa_id = c.id
+        WHERE i.id = ?
+    `;
+    
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else if (!row) {
+            res.status(404).json({ error: 'Intervento non trovato' });
+        } else {
+            res.json({ data: row });
+        }
+    });
+});
+
+// PUT - Aggiorna intervento
+app.put('/api/interventi/:id', (req, res) => {
+    const { stato, esito, note_finali } = req.body;
+    
+    const sql = `UPDATE interventi_correttivi SET 
+        stato = ?, esito = ?, note_finali = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`;
+    
+    db.run(sql, [stato, esito, note_finali, req.params.id], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else if (this.changes === 0) {
+            res.status(404).json({ error: 'Intervento non trovato' });
+        } else {
+            res.json({ message: 'Intervento aggiornato' });
+        }
+    });
+});
+
+// DELETE - Elimina intervento
+app.delete('/api/interventi/:id', (req, res) => {
+    db.run('DELETE FROM interventi_correttivi WHERE id = ?', [req.params.id], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+        } else if (this.changes === 0) {
+            res.status(404).json({ error: 'Intervento non trovato' });
+        } else {
+            res.json({ message: 'Intervento eliminato' });
+        }
+    });
 });
 
 // Avvia server
