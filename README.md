@@ -5,9 +5,13 @@
 ### ❌ Rimosso:
 - **PDF Correttiva** - Eliminato pulsante e funzione
 - **Rapportino** - Già rimosso in precedenza
+- **Colore nero nel grafico Stato Correttiva** - Filtrati valori undefined/null
 
 ### ✅ Aggiunto:
 - **Foto in Altri Dati** - Possibilità di caricare foto nella sezione "Altri Dati" dell'esploso
+
+### ✅ Corretto:
+- **Grafico Stato Correttiva** - Rimossi valori undefined che apparivano in nero
 
 ### ✅ Mantenuto:
 - **Matricola opzionale** - Campo matricola non più obbligatorio
@@ -19,6 +23,14 @@
 ```
 ✏️ Modifica | 🔧 Esploso | 🗑️ Elimina
 ```
+
+---
+
+## 📊 Fix Grafico Dashboard:
+
+**Problema risolto:**
+- ❌ Prima: Valori "undefined" apparivano come fetta nera nel grafico
+- ✅ Ora: Filtrati automaticamente solo valori validi (Operativa, In Correttiva, In Attesa Riparazione)
 
 ---
 
@@ -38,6 +50,9 @@ Nella pagina **Esploso Tecnico**, sezione **"Altri Dati"**:
 - ✅ Nuova colonna: `foto_altri_dati TEXT`
 - ✅ Migrazione automatica all'avvio
 
+### Tabella `cappe`:
+- ✅ Campo `matricola` ora opzionale (nullable)
+
 ---
 
 ## 🚀 Come aggiornare:
@@ -50,13 +65,14 @@ cp aggiornamento-finale/public/cappe.html public/
 cp aggiornamento-finale/public/styles.css public/
 cp aggiornamento-finale/public/esploso.html public/
 cp aggiornamento-finale/public/esploso.js public/
+cp aggiornamento-finale/public/dashboard.js public/
 cp aggiornamento-finale/server.js .
 ```
 
 ### 2. Commit:
 ```bash
-git add public/app.js public/cappe.html public/styles.css public/esploso.html public/esploso.js server.js
-git commit -m "feat: Matricola opzionale + foto in Altri Dati (senza PDF/Rapportino)"
+git add public/ server.js
+git commit -m "feat: Matricola opzionale + foto Altri Dati + fix grafico nero"
 ```
 
 ### 3. Push:
@@ -83,6 +99,10 @@ git push origin main
 ### **public/cappe.html**
 - ✅ Campo matricola senza asterisco (opzionale)
 
+### **public/dashboard.js** ⭐ **NUOVO FIX**
+- ✅ Filtrati valori undefined/null dal grafico Stato Correttiva
+- ✅ Grafico mostra solo: Operativa (verde), In Correttiva (giallo), In Attesa Riparazione (rosso)
+
 ### **public/esploso.html**
 - ✅ Aggiunto input file per foto in "Altri Dati"
 - ✅ Aggiunto div per anteprima foto
@@ -102,12 +122,13 @@ git push origin main
 ## ✅ Messaggio commit consigliato:
 
 ```
-feat: Matricola opzionale + foto in Altri Dati (senza PDF/Rapportino)
+feat: Matricola opzionale + foto Altri Dati + fix grafico nero
 
 - Rimossi pulsanti PDF Correttiva e Rapportino
-- Campo matricola ora opzionale (alcuni apparecchi non hanno matricola)
-- Aggiunta possibilità di caricare foto in sezione "Altri Dati" dell'esploso
-- Nuova colonna foto_altri_dati nel database esploso
+- Campo matricola ora opzionale (alcuni apparecchi senza matricola)
+- Aggiunta possibilità caricare foto in Altri Dati esploso
+- Fix grafico Dashboard: rimossi valori undefined (nero)
+- Nuova colonna foto_altri_dati nel database
 - Migrazione database automatica
 ```
 
@@ -124,6 +145,16 @@ feat: Matricola opzionale + foto in Altri Dati (senza PDF/Rapportino)
 7. Clicca **"💾 Salva Dati"**
 
 Le foto verranno salvate come base64 nel database!
+
+---
+
+## 🎨 Colori Grafici Dashboard:
+
+**Stato Correttiva:**
+- 🟢 Verde: Operativa
+- 🟡 Giallo: In Correttiva
+- 🔴 Rosso: In Attesa Riparazione
+- ❌ Nero: RIMOSSO (erano valori undefined)
 
 ---
 

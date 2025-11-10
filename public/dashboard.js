@@ -108,9 +108,16 @@ function prepareCorrettivaData(data) {
         'In Attesa Riparazione': '🔧 '
     };
     
-    const labels = data.map(item => iconMap[item.stato_correttiva] + item.stato_correttiva);
-    const values = data.map(item => item.count);
-    const colors = data.map(item => colorMap[item.stato_correttiva]);
+    // Filtra solo i dati con stato_correttiva valido
+    const validData = data.filter(item => 
+        item.stato_correttiva && 
+        item.stato_correttiva.trim() !== '' &&
+        colorMap[item.stato_correttiva]
+    );
+    
+    const labels = validData.map(item => iconMap[item.stato_correttiva] + item.stato_correttiva);
+    const values = validData.map(item => item.count);
+    const colors = validData.map(item => colorMap[item.stato_correttiva]);
     
     return {
         labels: labels,
