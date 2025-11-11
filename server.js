@@ -1,6 +1,5 @@
 const express = require('express');
-const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const path = require('path');
 const XLSX = require('xlsx');
 
@@ -8,373 +7,89 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Database setup
-const db = new sqlite3.Database('./gestionale_cappe.db', (err) => {
+// PostgreSQL Connection Pool
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection
+pool.connect((err, client, release) => {
     if (err) {
-        console.error('Errore connessione database:', err);
+        console.error('❌ Errore connessione PostgreSQL:', err.stack);
     } else {
-        console.log('Database connesso');
-        initDatabase();
+        console.log('✅ Connesso a PostgreSQL');
+        release();
     }
 });
 
 // Inizializza il database
-function initDatabase() {
-    db.run(`CREATE TABLE IF NOT EXISTS cappe (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        inventario TEXT NOT NULL,
-        tipologia TEXT NOT NULL,
-        matricola TEXT UNIQUE,
-        produttore TEXT NOT NULL,
-        modello TEXT NOT NULL,
-        sede TEXT NOT NULL,
-        reparto TEXT NOT NULL,
-        locale TEXT NOT NULL,
-        stato_correttiva TEXT DEFAULT 'Operativa',
-        data_manutenzione TEXT,
-        data_prossima_manutenzione TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, (err) => {
-        if (err) {
-            console.error('Errore creazione tabella cappe:', err);
-        } else {
-            console.log('Tabella cappe pronta');
-            
-            // Migrazione: rendi matricola opzionale
-            // SQLite non supporta ALTER COLUMN, quindi dobbiamo ricreare la tabella
-            db.get("PRAGMA table_info(cappe)", (err, info) => {
-                if (!err) {
-                    // Controlla se matricola ha ancora NOT NULL
-                    db.all("PRAGMA table_info(cappe)", (err, columns) => {
-                        const matricolaCol = columns.find(c => c.name === 'matricola');
-                        if (matricolaCol && matricolaCol.notnull === 1) {
-                            console.log('Migrazione: rendendo matricola opzionale...');
-                            
-                            // Crea tabella temporanea
-                            db.run(`CREATE TABLE cappe_new (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                inventario TEXT NOT NULL,
-                                tipologia TEXT NOT NULL,
-                                matricola TEXT UNIQUE,
-                                produttore TEXT NOT NULL,
-                                modello TEXT NOT NULL,
-                                sede TEXT NOT NULL,
-                                reparto TEXT NOT NULL,
-                                locale TEXT NOT NULL,
-                                stato_correttiva TEXT DEFAULT 'Operativa',
-                                data_manutenzione TEXT,
-                                data_prossima_manutenzione TEXT,
-                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                            )`, (err) => {
-                                if (err) {
-                                    console.error('Errore creazione tabella temporanea:', err);
-                                    return;
-                                }
-                                
-                                // Copia dati
-                                db.run(`INSERT INTO cappe_new SELECT * FROM cappe`, (err) => {
-                                    if (err) {
-                                        console.error('Errore copia dati:', err);
-                                        return;
-                                    }
-                                    
-                                    // Elimina vecchia tabella
-                                    db.run(`DROP TABLE cappe`, (err) => {
-                                        if (err) {
-                                            console.error('Errore eliminazione tabella:', err);
-                                            return;
-                                        }
-                                        
-                                        // Rinomina nuova tabella
-                                        db.run(`ALTER TABLE cappe_new RENAME TO cappe`, (err) => {
-                                            if (err) {
-                                                console.error('Errore rinomina tabella:', err);
-                                            } else {
-                                                console.log('✓ Matricola ora è opzionale');
-                                            }
-                                        });
-                                    });
-                                });
-                            });
-                        }
-                    });
-                }
-            });
-            
-            // Aggiungi colonna se non esiste (per database esistenti)
-            db.run(`ALTER TABLE cappe ADD COLUMN stato_correttiva TEXT DEFAULT 'Operativa'`, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('Errore aggiunta colonna stato_correttiva:', err);
-                }
-            });
-        }
-    });
-    
-    // Tabella esploso tecnico
-    db.run(`CREATE TABLE IF NOT EXISTS esploso (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        cappa_id INTEGER NOT NULL,
-        dati_motore TEXT,
-        dati_filtri TEXT,
-        dati_luce_uv TEXT,
-        dati_luce_bianca TEXT,
-        ore_lavoro_cappa INTEGER DEFAULT 0,
-        ore_lavoro_filtri INTEGER DEFAULT 0,
-        foto_cappa TEXT,
-        foto_motore TEXT,
-        foto_filtri TEXT,
-        foto_luce_uv TEXT,
-        foto_luce_bianca TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (cappa_id) REFERENCES cappe(id) ON DELETE CASCADE,
-        UNIQUE(cappa_id)
-    )`, (err) => {
-        if (err) {
-            console.error('Errore creazione tabella esploso:', err);
-        } else {
-            console.log('Tabella esploso pronta');
-            // Aggiungi nuove colonne se non esistono
-            db.run(`ALTER TABLE esploso ADD COLUMN dati_targa TEXT`, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('Errore aggiunta dati_targa:', err);
-                }
-            });
-            db.run(`ALTER TABLE esploso ADD COLUMN foto_targa TEXT`, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('Errore aggiunta foto_targa:', err);
-                }
-            });
-            db.run(`ALTER TABLE esploso ADD COLUMN altri_dati TEXT`, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('Errore aggiunta altri_dati:', err);
-                }
-            });
-            db.run(`ALTER TABLE esploso ADD COLUMN foto_altri_dati TEXT`, (err) => {
-                if (err && !err.message.includes('duplicate column')) {
-                    console.error('Errore aggiunta foto_altri_dati:', err);
-                }
-            });
-        }
-    });
-    
-    // Tabella interventi correttivi
-    db.run(`CREATE TABLE IF NOT EXISTS interventi_correttivi (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        cappa_id INTEGER NOT NULL,
-        numero_ticket TEXT UNIQUE,
-        
-        -- Segnalazione
-        data_richiesta TEXT NOT NULL,
-        richiedente TEXT,
-        contatto_richiedente TEXT,
-        problema_riscontrato TEXT,
-        priorita TEXT DEFAULT 'Media',
-        cappa_ferma INTEGER DEFAULT 0,
-        
-        -- Diagnosi
-        data_sopralluogo TEXT,
-        tecnico_diagnostico TEXT,
-        causa_guasto TEXT,
-        componenti_danneggiati TEXT,
-        preventivo REAL,
-        
-        -- Intervento
-        data_inizio TEXT,
-        data_fine TEXT,
-        tecnici TEXT,
-        attivita_svolte TEXT,
-        ricambi TEXT,
-        ore_lavoro REAL,
-        costo_totale REAL,
-        foto_prima TEXT,
-        foto_dopo TEXT,
-        
-        -- Verifica e Chiusura
-        test_eseguiti TEXT,
-        parametri_verificati TEXT,
-        esito TEXT,
-        garanzia_giorni INTEGER,
-        prossima_manutenzione TEXT,
-        note_finali TEXT,
-        firma_tecnico TEXT,
-        firma_cliente TEXT,
-        
-        stato TEXT DEFAULT 'Aperto',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (cappa_id) REFERENCES cappe(id) ON DELETE CASCADE
-    )`, (err) => {
-        if (err) {
-            console.error('Errore creazione tabella interventi_correttivi:', err);
-        } else {
-            console.log('Tabella interventi_correttivi pronta');
-        }
-    });
+async function initDatabase() {
+    const client = await pool.connect();
+    try {
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cappe (
+                id SERIAL PRIMARY KEY,
+                inventario VARCHAR(50),
+                tipologia VARCHAR(100),
+                matricola VARCHAR(100) UNIQUE,
+                produttore VARCHAR(100),
+                modello VARCHAR(100),
+                sede VARCHAR(100),
+                reparto VARCHAR(100),
+                locale VARCHAR(100),
+                note TEXT,
+                stato_correttiva VARCHAR(50) DEFAULT 'Operativa',
+                data_manutenzione DATE,
+                data_prossima_manutenzione DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Tabella cappe pronta');
+    } catch (err) {
+        console.error('❌ Errore inizializzazione database:', err);
+    } finally {
+        client.release();
+    }
 }
 
-// ============= API ENDPOINTS =============
+// Inizializza il database all'avvio
+initDatabase();
 
-// GET - Statistiche per dashboard
-app.get('/api/dashboard/stats', (req, res) => {
-    const stats = {};
-    
-    // Totale cappe
-    db.get('SELECT COUNT(*) as total FROM cappe', [], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.totalCappe = row.total;
-        
-        // Sedi attive
-        db.get('SELECT COUNT(DISTINCT sede) as total FROM cappe', [], (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-            stats.sediAttive = row.total;
-            
-            // Manutenzioni scadute
-            db.get(`SELECT COUNT(*) as total FROM cappe 
-                    WHERE data_prossima_manutenzione IS NOT NULL 
-                    AND data_prossima_manutenzione < date('now')`, [], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-                stats.manutenzioniScadute = row.total;
-                
-                // Prossime manutenzioni (30 giorni)
-                db.get(`SELECT COUNT(*) as total FROM cappe 
-                        WHERE data_prossima_manutenzione IS NOT NULL 
-                        AND data_prossima_manutenzione >= date('now')
-                        AND data_prossima_manutenzione <= date('now', '+30 days')`, [], (err, row) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    stats.manutenzioniProssime = row.total;
-                    
-                    // Cappe in correttiva
-                    db.get(`SELECT COUNT(*) as total FROM cappe 
-                            WHERE stato_correttiva != 'Operativa'`, [], (err, row) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        stats.cappeCorrettiva = row.total;
-                        
-                        res.json({ data: stats });
-                    });
-                });
-            });
-        });
-    });
-});
-
-// GET - Dati grafici per dashboard
-app.get('/api/dashboard/charts', (req, res) => {
-    const charts = {};
-    
-    // Cappe per sede
-    db.all(`SELECT sede, COUNT(*) as count FROM cappe GROUP BY sede ORDER BY count DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        charts.perSede = rows;
-        
-        // Stato correttiva
-        db.all(`SELECT stato_correttiva, COUNT(*) as count FROM cappe GROUP BY stato_correttiva`, [], (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            charts.statoCorrettiva = rows;
-            
-            // Stato manutenzioni
-            db.all(`SELECT 
-                    CASE 
-                        WHEN data_prossima_manutenzione IS NULL THEN 'Non programmata'
-                        WHEN data_prossima_manutenzione < date('now') THEN 'Scaduta'
-                        WHEN data_prossima_manutenzione <= date('now', '+30 days') THEN 'Prossima'
-                        ELSE 'OK'
-                    END as stato,
-                    COUNT(*) as count
-                    FROM cappe 
-                    GROUP BY stato`, [], (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-                charts.statoManutenzioni = rows;
-                
-                res.json({ data: charts });
-            });
-        });
-    });
-});
+// ==================== API ROUTES ====================
 
 // GET - Ottieni tutte le cappe
-app.get('/api/cappe', (req, res) => {
-    db.all('SELECT * FROM cappe ORDER BY inventario ASC', [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else {
-            res.json({ data: rows });
-        }
-    });
+app.get('/api/cappe', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM cappe ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Errore GET /api/cappe:', err);
+        res.status(500).json({ error: 'Errore nel recupero dei dati' });
+    }
 });
 
 // GET - Ottieni una cappa specifica
-app.get('/api/cappe/:id', (req, res) => {
-    db.get('SELECT * FROM cappe WHERE id = ?', [req.params.id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (!row) {
-            res.status(404).json({ error: 'Cappa non trovata' });
-        } else {
-            res.json({ data: row });
+app.get('/api/cappe/:id', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM cappe WHERE id = $1', [req.params.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Cappa non trovata' });
         }
-    });
-});
-
-// POST - Aggiungi nuova cappa
-app.post('/api/cappe', (req, res) => {
-    const {
-        inventario,
-        tipologia,
-        matricola,
-        produttore,
-        modello,
-        sede,
-        reparto,
-        locale,
-        stato_correttiva,
-        data_manutenzione,
-        data_prossima_manutenzione
-    } = req.body;
-
-    // Validazione campi obbligatori (matricola è opzionale)
-    if (!inventario || !tipologia || !produttore || !modello || !sede || !reparto || !locale) {
-        return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Errore GET /api/cappe/:id:', err);
+        res.status(500).json({ error: 'Errore nel recupero della cappa' });
     }
-
-    const sql = `INSERT INTO cappe (
-        inventario, tipologia, matricola, produttore, modello, 
-        sede, reparto, locale, stato_correttiva, data_manutenzione, data_prossima_manutenzione
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    db.run(sql, [
-        inventario, tipologia, matricola || null, produttore, modello,
-        sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione
-    ], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                if (err.message.includes('inventario')) {
-                    res.status(400).json({ error: 'Numero inventario già esistente' });
-                } else if (err.message.includes('matricola')) {
-                    res.status(400).json({ error: 'Matricola già esistente' });
-                } else {
-                    res.status(400).json({ error: 'Valore duplicato' });
-                }
-            } else {
-                res.status(500).json({ error: err.message });
-            }
-        } else {
-            res.status(201).json({
-                message: 'Cappa aggiunta con successo',
-                id: this.lastID
-            });
-        }
-    });
 });
 
-// PUT - Aggiorna cappa esistente
-app.put('/api/cappe/:id', (req, res) => {
+// POST - Crea nuova cappa
+app.post('/api/cappe', async (req, res) => {
     const {
         inventario,
         tipologia,
@@ -384,714 +99,266 @@ app.put('/api/cappe/:id', (req, res) => {
         sede,
         reparto,
         locale,
+        note,
         stato_correttiva,
         data_manutenzione,
         data_prossima_manutenzione
     } = req.body;
 
-    const sql = `UPDATE cappe SET 
-        inventario = ?, tipologia = ?, matricola = ?, produttore = ?, 
-        modello = ?, sede = ?, reparto = ?, locale = ?, stato_correttiva = ?,
-        data_manutenzione = ?, data_prossima_manutenzione = ?,
-        updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`;
-
-    db.run(sql, [
-        inventario, tipologia, matricola || null, produttore, modello,
-        sede, reparto, locale, stato_correttiva || 'Operativa', data_manutenzione, data_prossima_manutenzione,
-        req.params.id
-    ], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                if (err.message.includes('inventario')) {
-                    res.status(400).json({ error: 'Numero inventario già esistente' });
-                } else if (err.message.includes('matricola')) {
-                    res.status(400).json({ error: 'Matricola già esistente' });
-                } else {
-                    res.status(400).json({ error: 'Valore duplicato' });
-                }
-            } else {
-                res.status(500).json({ error: err.message });
-            }
-        } else if (this.changes === 0) {
-            res.status(404).json({ error: 'Cappa non trovata' });
+    try {
+        const result = await pool.query(
+            `INSERT INTO cappe (
+                inventario, tipologia, matricola, produttore, modello, 
+                sede, reparto, locale, note, stato_correttiva,
+                data_manutenzione, data_prossima_manutenzione
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+            RETURNING *`,
+            [
+                inventario || null,
+                tipologia || null,
+                matricola || null,
+                produttore || null,
+                modello || null,
+                sede || null,
+                reparto || null,
+                locale || null,
+                note || null,
+                stato_correttiva || 'Operativa',
+                data_manutenzione || null,
+                data_prossima_manutenzione || null
+            ]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Errore POST /api/cappe:', err);
+        if (err.code === '23505') { // Unique violation
+            res.status(400).json({ error: 'Matricola già esistente' });
         } else {
-            res.json({ message: 'Cappa aggiornata con successo' });
+            res.status(500).json({ error: 'Errore nella creazione della cappa' });
         }
-    });
+    }
+});
+
+// PUT - Aggiorna cappa
+app.put('/api/cappe/:id', async (req, res) => {
+    const {
+        inventario,
+        tipologia,
+        matricola,
+        produttore,
+        modello,
+        sede,
+        reparto,
+        locale,
+        note,
+        stato_correttiva,
+        data_manutenzione,
+        data_prossima_manutenzione
+    } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE cappe SET 
+                inventario = $1,
+                tipologia = $2,
+                matricola = $3,
+                produttore = $4,
+                modello = $5,
+                sede = $6,
+                reparto = $7,
+                locale = $8,
+                note = $9,
+                stato_correttiva = $10,
+                data_manutenzione = $11,
+                data_prossima_manutenzione = $12,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $13
+            RETURNING *`,
+            [
+                inventario || null,
+                tipologia || null,
+                matricola || null,
+                produttore || null,
+                modello || null,
+                sede || null,
+                reparto || null,
+                locale || null,
+                note || null,
+                stato_correttiva || 'Operativa',
+                data_manutenzione || null,
+                data_prossima_manutenzione || null,
+                req.params.id
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Cappa non trovata' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Errore PUT /api/cappe/:id:', err);
+        if (err.code === '23505') { // Unique violation
+            res.status(400).json({ error: 'Matricola già esistente' });
+        } else {
+            res.status(500).json({ error: 'Errore nell\'aggiornamento della cappa' });
+        }
+    }
 });
 
 // DELETE - Elimina cappa
-app.delete('/api/cappe/:id', (req, res) => {
-    db.run('DELETE FROM cappe WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (this.changes === 0) {
-            res.status(404).json({ error: 'Cappa non trovata' });
-        } else {
-            res.json({ message: 'Cappa eliminata con successo' });
-        }
-    });
-});
-
-// GET - Statistiche per Dashboard
-app.get('/api/dashboard/stats', (req, res) => {
-    const stats = {};
-    
-    // Totale cappe
-    db.get('SELECT COUNT(*) as total FROM cappe', [], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.totale_cappe = row.total;
-        
-        // Sedi attive
-        db.get('SELECT COUNT(DISTINCT sede) as total FROM cappe', [], (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-            stats.sedi_attive = row.total;
-            
-            // Manutenzioni scadute
-            db.get(`SELECT COUNT(*) as total FROM cappe 
-                    WHERE data_prossima_manutenzione < date('now')`, [], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-                stats.manutenzioni_scadute = row.total;
-                
-                // Prossime manutenzioni (30 giorni)
-                db.get(`SELECT COUNT(*) as total FROM cappe 
-                        WHERE data_prossima_manutenzione BETWEEN date('now') AND date('now', '+30 days')`, [], (err, row) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    stats.prossime_manutenzioni = row.total;
-                    
-                    // Cappe in correttiva
-                    db.get(`SELECT COUNT(*) as total FROM cappe 
-                            WHERE stato_correttiva IN ('In Correttiva', 'In Attesa Riparazione')`, [], (err, row) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        stats.cappe_correttiva = row.total;
-                        
-                        // Dati grafici - Cappe per Sede
-                        db.all(`SELECT sede, COUNT(*) as count FROM cappe GROUP BY sede ORDER BY count DESC`, [], (err, rows) => {
-                            if (err) return res.status(500).json({ error: err.message });
-                            stats.cappe_per_sede = rows;
-                            
-                            // Dati grafici - Stato Correttiva
-                            db.all(`SELECT stato_correttiva, COUNT(*) as count FROM cappe GROUP BY stato_correttiva`, [], (err, rows) => {
-                                if (err) return res.status(500).json({ error: err.message });
-                                stats.stato_correttiva = rows;
-                                
-                                // Stato manutenzioni
-                                stats.stato_manutenzioni = [
-                                    { stato: 'OK', count: stats.totale_cappe - stats.manutenzioni_scadute - stats.prossime_manutenzioni },
-                                    { stato: 'Prossime', count: stats.prossime_manutenzioni },
-                                    { stato: 'Scadute', count: stats.manutenzioni_scadute }
-                                ];
-                                
-                                res.json({ data: stats });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    });
-});
-
-// GET - Export Excel
-app.get('/api/cappe/export/excel', (req, res) => {
-    db.all('SELECT * FROM cappe ORDER BY created_at DESC', [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else {
-            // Prepara i dati per Excel
-            const data = rows.map(row => ({
-                'ID': row.id,
-                'Inventario': row.inventario,
-                'Tipologia': row.tipologia,
-                'Matricola': row.matricola,
-                'Produttore': row.produttore,
-                'Modello': row.modello,
-                'Sede': row.sede,
-                'Reparto': row.reparto,
-                'Locale': row.locale,
-                'Data Manutenzione': row.data_manutenzione || '',
-                'Data Prossima Manutenzione': row.data_prossima_manutenzione || ''
-            }));
-
-            // Crea workbook
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(data);
-            XLSX.utils.book_append_sheet(wb, ws, 'Cappe');
-
-            // Genera buffer
-            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-            // Invia file
-            res.setHeader('Content-Disposition', 'attachment; filename=cappe_inventario.xlsx');
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.send(buffer);
-        }
-    });
-});
-
-// GET - Ottieni dati esploso per una cappa
-app.get('/api/esploso/:cappaId', (req, res) => {
-    db.get('SELECT * FROM esploso WHERE cappa_id = ?', [req.params.cappaId], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (!row) {
-            res.status(404).json({ error: 'Dati esploso non trovati' });
-        } else {
-            res.json({ data: row });
-        }
-    });
-});
-
-// POST - Salva/Aggiorna dati esploso
-app.post('/api/esploso', (req, res) => {
-    const {
-        cappa_id,
-        dati_targa,
-        dati_motore,
-        dati_filtri,
-        dati_luce_uv,
-        dati_luce_bianca,
-        ore_lavoro_cappa,
-        ore_lavoro_filtri,
-        altri_dati,
-        foto_targa,
-        foto_cappa,
-        foto_motore,
-        foto_filtri,
-        foto_luce_uv,
-        foto_luce_bianca,
-        foto_altri_dati
-    } = req.body;
-
-    if (!cappa_id) {
-        return res.status(400).json({ error: 'ID cappa mancante' });
-    }
-
-    // Verifica se esiste già un record per questa cappa
-    db.get('SELECT id FROM esploso WHERE cappa_id = ?', [cappa_id], (err, existing) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-
-        if (existing) {
-            // Aggiorna
-            const updateSql = `UPDATE esploso SET 
-                dati_targa = ?, dati_motore = ?, dati_filtri = ?, dati_luce_uv = ?, dati_luce_bianca = ?,
-                ore_lavoro_cappa = ?, ore_lavoro_filtri = ?, altri_dati = ?,
-                foto_targa = ?, foto_cappa = ?, foto_motore = ?, foto_filtri = ?, foto_luce_uv = ?, foto_luce_bianca = ?, foto_altri_dati = ?,
-                updated_at = CURRENT_TIMESTAMP
-                WHERE cappa_id = ?`;
-            
-            db.run(updateSql, [
-                dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
-                ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati,
-                cappa_id
-            ], function(err) {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                } else {
-                    res.json({ message: 'Dati esploso aggiornati con successo' });
-                }
-            });
-        } else {
-            // Inserisci nuovo
-            const insertSql = `INSERT INTO esploso (
-                cappa_id, dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
-                ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            
-            db.run(insertSql, [
-                cappa_id, dati_targa, dati_motore, dati_filtri, dati_luce_uv, dati_luce_bianca,
-                ore_lavoro_cappa, ore_lavoro_filtri, altri_dati,
-                foto_targa, foto_cappa, foto_motore, foto_filtri, foto_luce_uv, foto_luce_bianca, foto_altri_dati
-            ], function(err) {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                } else {
-                    res.status(201).json({
-                        message: 'Dati esploso creati con successo',
-                        id: this.lastID
-                    });
-                }
-            });
-        }
-    });
-});
-
-// POST - Import Excel
-app.post('/api/cappe/import/excel', express.raw({ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', limit: '10mb' }), (req, res) => {
+app.delete('/api/cappe/:id', async (req, res) => {
     try {
-        const workbook = XLSX.read(req.body, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet);
-
-        const mode = req.query.mode || 'add'; // 'add' o 'replace'
+        const result = await pool.query('DELETE FROM cappe WHERE id = $1 RETURNING *', [req.params.id]);
         
-        let inserted = 0;
-        let updated = 0;
-        let skipped = 0;
-        let errors = [];
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Cappa non trovata' });
+        }
 
-        const processRow = (index) => {
-            if (index >= data.length) {
-                return res.json({
-                    message: 'Importazione completata',
-                    inserted,
-                    updated,
-                    skipped,
-                    errors: errors.length > 0 ? errors : undefined
-                });
-            }
+        res.json({ message: 'Cappa eliminata con successo' });
+    } catch (err) {
+        console.error('Errore DELETE /api/cappe/:id:', err);
+        res.status(500).json({ error: 'Errore nell\'eliminazione della cappa' });
+    }
+});
 
-            const row = data[index];
-            
-            // Validazione campi obbligatori
-            if (!row.Inventario || !row.Tipologia || !row.Matricola || !row.Produttore || 
-                !row.Modello || !row.Sede || !row.Reparto || !row.Locale) {
-                errors.push(`Riga ${index + 2}: campi obbligatori mancanti`);
-                skipped++;
-                return processRow(index + 1);
-            }
+// POST - Importa da Excel
+app.post('/api/cappe/import', async (req, res) => {
+    try {
+        const { data } = req.body;
+        
+        if (!data || !Array.isArray(data)) {
+            return res.status(400).json({ error: 'Dati non validi' });
+        }
 
-            // Converti date formato italiano (gg/mm/aaaa) in ISO (aaaa-mm-gg)
-            const convertDate = (dateStr) => {
-                if (!dateStr) return null;
-                if (typeof dateStr === 'number') {
-                    // Excel date serial number
-                    const date = XLSX.SSF.parse_date_code(dateStr);
-                    return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
-                }
-                if (typeof dateStr === 'string') {
-                    // Formato gg/mm/aaaa
-                    const parts = dateStr.split('/');
-                    if (parts.length === 3) {
-                        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                    }
-                }
-                return null;
-            };
+        let importati = 0;
+        let errori = [];
 
-            const dataManutenzione = convertDate(row['Data Manutenzione']);
-            const dataProssimaManutenzione = convertDate(row['Data Prossima Manutenzione']);
-
-            // Verifica se la matricola esiste già
-            db.get('SELECT id FROM cappe WHERE matricola = ?', [row.Matricola], (err, existing) => {
-                if (err) {
-                    errors.push(`Riga ${index + 2}: ${err.message}`);
-                    skipped++;
-                    return processRow(index + 1);
-                }
-
-                if (existing) {
-                    if (mode === 'replace') {
-                        // Aggiorna
-                        const updateSql = `UPDATE cappe SET 
-                            inventario = ?, tipologia = ?, produttore = ?, modello = ?,
-                            sede = ?, reparto = ?, locale = ?, 
-                            data_manutenzione = ?, data_prossima_manutenzione = ?,
-                            updated_at = CURRENT_TIMESTAMP
-                            WHERE matricola = ?`;
-                        
-                        db.run(updateSql, [
-                            row.Inventario, row.Tipologia, row.Produttore, row.Modello,
-                            row.Sede, row.Reparto, row.Locale,
-                            dataManutenzione, dataProssimaManutenzione,
-                            row.Matricola
-                        ], (err) => {
-                            if (err) {
-                                errors.push(`Riga ${index + 2}: ${err.message}`);
-                                skipped++;
-                            } else {
-                                updated++;
-                            }
-                            processRow(index + 1);
-                        });
-                    } else {
-                        // Salta
-                        skipped++;
-                        processRow(index + 1);
-                    }
-                } else {
-                    // Inserisci nuova
-                    const insertSql = `INSERT INTO cappe (
+        for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+            try {
+                await pool.query(
+                    `INSERT INTO cappe (
                         inventario, tipologia, matricola, produttore, modello,
-                        sede, reparto, locale, data_manutenzione, data_prossima_manutenzione
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-                    
-                    db.run(insertSql, [
-                        row.Inventario, row.Tipologia, row.Matricola, row.Produttore, row.Modello,
-                        row.Sede, row.Reparto, row.Locale,
-                        dataManutenzione, dataProssimaManutenzione
-                    ], (err) => {
-                        if (err) {
-                            errors.push(`Riga ${index + 2}: ${err.message}`);
-                            skipped++;
-                        } else {
-                            inserted++;
-                        }
-                        processRow(index + 1);
-                    });
-                }
-            });
-        };
-
-        processRow(0);
-
-    } catch (error) {
-        res.status(400).json({ error: 'Errore nel parsing del file Excel: ' + error.message });
-    }
-});
-
-// ============= INTERVENTI CORRETTIVI API =============
-
-// POST - Crea nuovo intervento
-app.post('/api/interventi', (req, res) => {
-    const {
-        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
-        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
-        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
-        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
-        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
-        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato,
-        stato_correttiva_cappa
-    } = req.body;
-
-    if (!cappa_id || !data_richiesta || !problema_riscontrato) {
-        return res.status(400).json({ error: 'Campi obbligatori mancanti' });
-    }
-
-    const sql = `INSERT INTO interventi_correttivi (
-        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
-        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
-        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
-        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
-        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
-        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    db.run(sql, [
-        cappa_id, numero_ticket, data_richiesta, richiedente, contatto_richiedente,
-        problema_riscontrato, priorita, cappa_ferma, data_sopralluogo, tecnico_diagnostico,
-        causa_guasto, componenti_danneggiati, preventivo, data_inizio, data_fine,
-        tecnici, attivita_svolte, ricambi, ore_lavoro, costo_totale, foto_prima,
-        foto_dopo, test_eseguiti, parametri_verificati, esito, garanzia_giorni,
-        prossima_manutenzione, note_finali, firma_tecnico, firma_cliente, stato
-    ], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else {
-            const interventoId = this.lastID;
-            
-            // Aggiorna lo stato_correttiva della cappa
-            if (stato_correttiva_cappa) {
-                db.run(
-                    'UPDATE cappe SET stato_correttiva = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                    [stato_correttiva_cappa, cappa_id],
-                    (updateErr) => {
-                        if (updateErr) {
-                            console.error('Errore aggiornamento stato cappa:', updateErr);
-                        }
-                    }
+                        sede, reparto, locale, note, stato_correttiva,
+                        data_manutenzione, data_prossima_manutenzione
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                    [
+                        row.inventario || null,
+                        row.tipologia || null,
+                        row.matricola || null,
+                        row.produttore || null,
+                        row.modello || null,
+                        row.sede || null,
+                        row.reparto || null,
+                        row.locale || null,
+                        row.note || null,
+                        row.stato_correttiva || 'Operativa',
+                        row.data_manutenzione || null,
+                        row.data_prossima_manutenzione || null
+                    ]
                 );
+                importati++;
+            } catch (err) {
+                errori.push({ riga: i + 1, errore: err.message });
             }
-            
-            res.status(201).json({
-                message: 'Intervento creato con successo',
-                id: interventoId
-            });
         }
-    });
-});
 
-// GET - Lista tutti gli interventi
-app.get('/api/interventi', (req, res) => {
-    const sql = `
-        SELECT i.*, c.inventario, c.tipologia, c.sede
-        FROM interventi_correttivi i
-        LEFT JOIN cappe c ON i.cappa_id = c.id
-        ORDER BY i.created_at DESC
-    `;
-    
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else {
-            res.json({ data: rows });
-        }
-    });
-});
-
-// GET - Storico interventi per cappa
-app.get('/api/interventi/cappa/:cappaId', (req, res) => {
-    const sql = `
-        SELECT * FROM interventi_correttivi
-        WHERE cappa_id = ?
-        ORDER BY created_at DESC
-    `;
-    
-    db.all(sql, [req.params.cappaId], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else {
-            res.json({ data: rows });
-        }
-    });
-});
-
-// GET - Dettaglio intervento
-app.get('/api/interventi/:id', (req, res) => {
-    const sql = `
-        SELECT i.*, c.*
-        FROM interventi_correttivi i
-        LEFT JOIN cappe c ON i.cappa_id = c.id
-        WHERE i.id = ?
-    `;
-    
-    db.get(sql, [req.params.id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (!row) {
-            res.status(404).json({ error: 'Intervento non trovato' });
-        } else {
-            res.json({ data: row });
-        }
-    });
-});
-
-// PUT - Aggiorna intervento
-app.put('/api/interventi/:id', (req, res) => {
-    const { stato, esito, note_finali } = req.body;
-    
-    const sql = `UPDATE interventi_correttivi SET 
-        stato = ?, esito = ?, note_finali = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`;
-    
-    db.run(sql, [stato, esito, note_finali, req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (this.changes === 0) {
-            res.status(404).json({ error: 'Intervento non trovato' });
-        } else {
-            res.json({ message: 'Intervento aggiornato' });
-        }
-    });
-});
-
-// DELETE - Elimina intervento
-app.delete('/api/interventi/:id', (req, res) => {
-    db.run('DELETE FROM interventi_correttivi WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-        } else if (this.changes === 0) {
-            res.status(404).json({ error: 'Intervento non trovato' });
-        } else {
-            res.json({ message: 'Intervento eliminato' });
-        }
-    });
-});
-
-// GET - Export Interventi Excel
-app.get('/api/interventi/export', async (req, res) => {
-    try {
-        const ExcelJS = require('exceljs');
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Interventi');
-        
-        // Definisci colonne
-        worksheet.columns = [
-            { header: 'ID', key: 'id', width: 8 },
-            { header: 'Numero Ticket', key: 'numero_ticket', width: 20 },
-            { header: 'Stato', key: 'stato', width: 15 },
-            
-            // Dati Cappa
-            { header: 'Inventario', key: 'inventario', width: 12 },
-            { header: 'Matricola', key: 'matricola', width: 18 },
-            { header: 'Tipologia', key: 'tipologia', width: 15 },
-            { header: 'Produttore', key: 'produttore', width: 15 },
-            { header: 'Modello', key: 'modello', width: 15 },
-            { header: 'Sede', key: 'sede', width: 12 },
-            { header: 'Reparto', key: 'reparto', width: 15 },
-            { header: 'Locale', key: 'locale', width: 12 },
-            
-            // Segnalazione
-            { header: 'Data Richiesta', key: 'data_richiesta', width: 18 },
-            { header: 'Richiedente', key: 'richiedente', width: 20 },
-            { header: 'Contatto', key: 'contatto_richiedente', width: 20 },
-            { header: 'Problema Riscontrato', key: 'problema_riscontrato', width: 35 },
-            { header: 'Priorità', key: 'priorita', width: 12 },
-            { header: 'Cappa Ferma', key: 'cappa_ferma', width: 12 },
-            
-            // Diagnosi
-            { header: 'Data Sopralluogo', key: 'data_sopralluogo', width: 18 },
-            { header: 'Tecnico Diagnostico', key: 'tecnico_diagnostico', width: 20 },
-            { header: 'Causa Guasto', key: 'causa_guasto', width: 35 },
-            { header: 'Componenti Danneggiati', key: 'componenti_danneggiati', width: 35 },
-            { header: 'Preventivo (€)', key: 'preventivo', width: 12 },
-            
-            // Intervento
-            { header: 'Data Inizio', key: 'data_inizio', width: 15 },
-            { header: 'Data Fine', key: 'data_fine', width: 15 },
-            { header: 'Tecnici Esecutori', key: 'tecnici', width: 25 },
-            { header: 'Attività Svolte', key: 'attivita_svolte', width: 40 },
-            { header: 'Ricambi (Dettaglio)', key: 'ricambi_dettaglio', width: 40 },
-            { header: 'Ore Lavoro', key: 'ore_lavoro', width: 12 },
-            { header: 'Costo Totale (€)', key: 'costo_totale', width: 15 },
-            
-            // Verifica
-            { header: 'Test Eseguiti', key: 'test_eseguiti', width: 35 },
-            { header: 'Velocità Aria (m/s)', key: 'param_velocita', width: 15 },
-            { header: 'Pressione (Pa)', key: 'param_pressione', width: 15 },
-            { header: 'Illuminamento (lux)', key: 'param_illuminamento', width: 15 },
-            { header: 'Esito', key: 'esito', width: 15 },
-            { header: 'Garanzia (gg)', key: 'garanzia_giorni', width: 12 },
-            { header: 'Prossima Manutenzione', key: 'prossima_manutenzione', width: 18 },
-            { header: 'Note Finali', key: 'note_finali', width: 40 },
-            
-            // Metadati
-            { header: 'Creato il', key: 'created_at', width: 18 },
-            { header: 'Aggiornato il', key: 'updated_at', width: 18 }
-        ];
-        
-        // Stile header
-        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF667eea' }
-        };
-        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-        
-        // Query con JOIN per prendere anche i dati della cappa
-        const sql = `
-            SELECT 
-                i.*,
-                c.inventario, c.matricola, c.tipologia, c.produttore, c.modello,
-                c.sede, c.reparto, c.locale
-            FROM interventi_correttivi i
-            LEFT JOIN cappe c ON i.cappa_id = c.id
-            ORDER BY i.created_at DESC
-        `;
-        
-        db.all(sql, [], (err, rows) => {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            
-            // Processa ogni riga
-            rows.forEach(row => {
-                // Parse JSON fields
-                let ricambiDettaglio = '';
-                if (row.ricambi) {
-                    try {
-                        const ricambi = JSON.parse(row.ricambi);
-                        ricambiDettaglio = ricambi.map(r => 
-                            `${r.codice} - ${r.descrizione} (Q.tà: ${r.quantita}, €${r.prezzo})`
-                        ).join('; ');
-                    } catch (e) {
-                        ricambiDettaglio = row.ricambi;
-                    }
-                }
-                
-                let paramVelocita = '', paramPressione = '', paramIlluminamento = '';
-                if (row.parametri_verificati) {
-                    try {
-                        const params = JSON.parse(row.parametri_verificati);
-                        paramVelocita = params.velocita || '';
-                        paramPressione = params.pressione || '';
-                        paramIlluminamento = params.illuminamento || '';
-                    } catch (e) {}
-                }
-                
-                worksheet.addRow({
-                    id: row.id,
-                    numero_ticket: row.numero_ticket,
-                    stato: row.stato,
-                    
-                    // Cappa
-                    inventario: row.inventario,
-                    matricola: row.matricola,
-                    tipologia: row.tipologia,
-                    produttore: row.produttore,
-                    modello: row.modello,
-                    sede: row.sede,
-                    reparto: row.reparto,
-                    locale: row.locale,
-                    
-                    // Segnalazione
-                    data_richiesta: row.data_richiesta,
-                    richiedente: row.richiedente,
-                    contatto_richiedente: row.contatto_richiedente,
-                    problema_riscontrato: row.problema_riscontrato,
-                    priorita: row.priorita,
-                    cappa_ferma: row.cappa_ferma ? 'Sì' : 'No',
-                    
-                    // Diagnosi
-                    data_sopralluogo: row.data_sopralluogo,
-                    tecnico_diagnostico: row.tecnico_diagnostico,
-                    causa_guasto: row.causa_guasto,
-                    componenti_danneggiati: row.componenti_danneggiati,
-                    preventivo: row.preventivo,
-                    
-                    // Intervento
-                    data_inizio: row.data_inizio,
-                    data_fine: row.data_fine,
-                    tecnici: row.tecnici,
-                    attivita_svolte: row.attivita_svolte,
-                    ricambi_dettaglio: ricambiDettaglio,
-                    ore_lavoro: row.ore_lavoro,
-                    costo_totale: row.costo_totale,
-                    
-                    // Verifica
-                    test_eseguiti: row.test_eseguiti,
-                    param_velocita: paramVelocita,
-                    param_pressione: paramPressione,
-                    param_illuminamento: paramIlluminamento,
-                    esito: row.esito,
-                    garanzia_giorni: row.garanzia_giorni,
-                    prossima_manutenzione: row.prossima_manutenzione,
-                    note_finali: row.note_finali,
-                    
-                    // Metadati
-                    created_at: row.created_at,
-                    updated_at: row.updated_at
-                });
-            });
-            
-            // Applica bordi e wrap text
-            worksheet.eachRow((row, rowNumber) => {
-                row.eachCell(cell => {
-                    cell.border = {
-                        top: { style: 'thin' },
-                        left: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        right: { style: 'thin' }
-                    };
-                    if (rowNumber > 1) {
-                        cell.alignment = { wrapText: true, vertical: 'top' };
-                    }
-                });
-            });
-            
-            // Invia file
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename=interventi_${new Date().toISOString().split('T')[0]}.xlsx`);
-            
-            workbook.xlsx.write(res).then(() => {
-                res.end();
-            });
+        res.json({
+            successo: true,
+            importati,
+            errori: errori.length,
+            dettagli: errori
         });
-        
-    } catch (error) {
-        console.error('Errore export interventi:', error);
-        res.status(500).json({ error: 'Errore durante l\'export: ' + error.message });
+    } catch (err) {
+        console.error('Errore importazione:', err);
+        res.status(500).json({ error: 'Errore durante l\'importazione' });
     }
 });
 
-// Avvia server
+// GET - Esporta in Excel
+app.get('/api/cappe/export', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM cappe ORDER BY id');
+        
+        // Crea workbook
+        const ws = XLSX.utils.json_to_sheet(result.rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Cappe');
+        
+        // Genera buffer
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        res.setHeader('Content-Disposition', 'attachment; filename=cappe_export.xlsx');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
+    } catch (err) {
+        console.error('Errore esportazione:', err);
+        res.status(500).json({ error: 'Errore durante l\'esportazione' });
+    }
+});
+
+// GET - Statistiche dashboard
+app.get('/api/stats', async (req, res) => {
+    try {
+        const totaleResult = await pool.query('SELECT COUNT(*) as totale FROM cappe');
+        const totale = parseInt(totaleResult.rows[0].totale);
+
+        const operativeResult = await pool.query(
+            "SELECT COUNT(*) as count FROM cappe WHERE stato_correttiva = 'Operativa'"
+        );
+        const operative = parseInt(operativeResult.rows[0].count);
+
+        const manutenzioneResult = await pool.query(
+            "SELECT COUNT(*) as count FROM cappe WHERE stato_correttiva = 'In Manutenzione'"
+        );
+        const inManutenzione = parseInt(manutenzioneResult.rows[0].count);
+
+        const scaduteResult = await pool.query(
+            'SELECT COUNT(*) as count FROM cappe WHERE data_prossima_manutenzione < CURRENT_DATE'
+        );
+        const scadute = parseInt(scaduteResult.rows[0].count);
+
+        const imminenteResult = await pool.query(
+            `SELECT COUNT(*) as count FROM cappe 
+             WHERE data_prossima_manutenzione >= CURRENT_DATE 
+             AND data_prossima_manutenzione <= CURRENT_DATE + INTERVAL '30 days'`
+        );
+        const imminente = parseInt(imminenteResult.rows[0].count);
+
+        res.json({
+            totale,
+            operative,
+            inManutenzione,
+            scadute,
+            imminente
+        });
+    } catch (err) {
+        console.error('Errore statistiche:', err);
+        res.status(500).json({ error: 'Errore nel recupero delle statistiche' });
+    }
+});
+
+// Serve static files
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', database: 'postgresql' });
+});
+
+// Avvio server
 app.listen(PORT, () => {
-    console.log(`Server avviato su http://localhost:${PORT}`);
+    console.log(`🚀 Server avviato su porta ${PORT}`);
+    console.log(`📊 Database: PostgreSQL`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
+});
+
+// Gestione chiusura graceful
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Chiusura server...');
+    await pool.end();
+    process.exit(0);
 });
