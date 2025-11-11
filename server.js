@@ -2,9 +2,13 @@ const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
 const XLSX = require('xlsx');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// CORS - Permetti tutte le origini
+app.use(cors());
 
 // Middleware
 app.use(express.json());
