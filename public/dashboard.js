@@ -1,4 +1,4 @@
-// Determina l'URL dell'API
+// Determina l'URL dell'API in base all'ambiente
 const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000/api'
     : `${window.location.origin}/api`;
@@ -15,36 +15,57 @@ document.addEventListener('DOMContentLoaded', loadDashboard);
 // Carica dati dashboard
 async function loadDashboard() {
     try {
+        console.log('Caricamento dashboard...');
+
         // Carica statistiche
         const statsResponse = await fetch(`${API_URL}/dashboard/stats`);
-        const statsData = await statsResponse.json();
-        
-        if (statsResponse.ok) {
+        console.log('Stats status:', statsResponse.status);
+        const statsData = await safeJson(statsResponse);
+        console.log('Stats raw:', statsData);
+
+        if (statsResponse.ok && statsData) {
             const stats = statsData.data || statsData;
-            updateStats(stats);
+            updateStats(stats || {});
+        } else {
+            console.warn('Stats non OK o vuote');
         }
-        
+
         // Carica dati grafici
         const chartsResponse = await fetch(`${API_URL}/dashboard/charts`);
-        const chartsData = await chartsResponse.json();
-        
-        if (chartsResponse.ok) {
+        console.log('Charts status:', chartsResponse.status);
+        const chartsData = await safeJson(chartsResponse);
+        console.log('Charts raw:', chartsData);
+
+        if (chartsResponse.ok && chartsData) {
             const chartsPayload = chartsData.data || chartsData;
-            updateCharts(chartsPayload);
+            updateCharts(chartsPayload || {});
+        } else {
+            console.warn('Charts non OK o vuote');
         }
-        
+
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
-        
+
     } catch (error) {
-        console.error('Errore caricamento dashboard:', error);
+        console.error('Errore caricamento dashboard (catch generale):', error);
         showNotification('Errore nel caricamento della dashboard', 'error');
-        document.getElementById('loading').textContent = 'Errore nel caricamento dei dati';
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.textContent = 'Errore nel caricamento dei dati';
+    }
+}
+
+// parsing JSON sicuro (non esplode se il body non è JSON valido)
+async function safeJson(response) {
+    try {
+        return await response.json();
+    } catch (e) {
+        console.warn('Risposta non in JSON valido:', e);
+        return null;
     }
 }
 
 // Aggiorna statistiche
-function updateStats(stats) {
+function updateStats(stats = {}) {
     document.getElementById('stat-total').textContent = stats.totalCappe || 0;
     document.getElementById('stat-sedi').textContent = stats.sediAttive || 0;
     document.getElementById('stat-scadute').textContent = stats.manutenzioniScadute || 0;
@@ -53,26 +74,25 @@ function updateStats(stats) {
 }
 
 // Aggiorna grafici
-function updateCharts(data) {
+function updateCharts(data = {}) {
+    // Assicuriamoci che le proprietà esistano come array
+    const perSede = Array.isArray(data.perSede) ? data.perSede : [];
+    const statoCorrettiva = Array.isArray(data.statoCorrettiva) ? data.statoCorrettiva : [];
+    const statoManutenzioni = Array.isArray(data.statoManutenzioni) ? data.statoManutenzioni : [];
+
     // Grafico Cappe per Sede
-    const sedeData = prepareSedeData(data.perSede || []);
-    if (charts.sede) {
-        charts.sede.destroy();
-    }
+    const sedeData = prepareSedeData(perSede);
+    if (charts.sede) charts.sede.destroy();
     charts.sede = createPieChart('chartSede', sedeData);
-    
+
     // Grafico Stato Correttiva
-    const correttivaData = prepareCorrettivaData(data.statoCorrettiva || []);
-    if (charts.correttiva) {
-        charts.correttiva.destroy();
-    }
+    const correttivaData = prepareCorrettivaData(statoCorrettiva);
+    if (charts.correttiva) charts.correttiva.destroy();
     charts.correttiva = createPieChart('chartCorrettiva', correttivaData);
-    
+
     // Grafico Stato Manutenzioni
-    const manutenzioniData = prepareManutenzioniData(data.statoManutenzioni || []);
-    if (charts.manutenzioni) {
-        charts.manutenzioni.destroy();
-    }
+    const manutenzioniData = prepareManutenzioniData(statoManutenzioni);
+    if (charts.manutenzioni) charts.manutenzioni.destroy();
     charts.manutenzioni = createPieChart('chartManutenzioni', manutenzioniData);
 }
 
@@ -110,9 +130,8 @@ function prepareCorrettivaData(data) {
         'In Attesa Riparazione': '🔧 '
     };
     
-    // Filtra solo i dati con stato_correttiva valido
     const validData = data.filter(item => 
-        item.stato_correttiva && 
+        item.stato_correttiva &&
         item.stato_correttiva.trim() !== '' &&
         colorMap[item.stato_correttiva]
     );
@@ -161,7 +180,13 @@ function prepareManutenzioniData(data) {
 
 // Crea grafico a torta
 function createPieChart(canvasId, data) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.warn(`Canvas non trovato: #${canvasId}`);
+        return null;
+    }
+
+    const ctx = canvas.getContext('2d');
     
     return new Chart(ctx, {
         type: 'pie',
@@ -229,6 +254,7 @@ function handleChartClick(chartId, label) {
 // Mostra notifica
 function showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
+    if (!notification) return;
     notification.textContent = message;
     notification.className = `notification ${type}`;
     notification.style.display = 'block';
