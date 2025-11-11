@@ -23,7 +23,7 @@ async function loadCappaData(id) {
     try {
         const response = await fetch(`${API_URL}/cappe/${id}`);
         const result = await response.json();
-        const cappa = result.data;
+        const cappa = result;
         
         // Popola anagrafica cappa (campi readonly)
         document.getElementById('inventario').value = cappa.inventario || '';
