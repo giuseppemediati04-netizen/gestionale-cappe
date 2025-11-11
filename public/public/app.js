@@ -4,6 +4,7 @@ const API_URL = (window.location.hostname === 'localhost' || window.location.hos
     : `${window.location.origin}/api/cappe`;
 
 let cappe = [];
+let filteredCappe = []; // Cappe attualmente visibili nella tabella
 let editingId = null;
 
 // Elementi DOM
@@ -35,7 +36,11 @@ function toggleAltroInput(select) {
 }
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', loadCappe);
+document.addEventListener('DOMContentLoaded', () => {
+    loadCappe().then(() => {
+        applyUrlFilters();
+    });
+});
 btnAggiungi.addEventListener('click', openAddModal);
 btnImport.addEventListener('click', openImportModal);
 btnRefresh.addEventListener('click', refreshData);
@@ -45,8 +50,69 @@ closeImport.addEventListener('click', closeImportModalHandler);
 document.getElementById('btnCancelImport').addEventListener('click', closeImportModalHandler);
 document.getElementById('btnStartImport').addEventListener('click', startImport);
 btnExport.addEventListener('click', exportExcel);
+document.getElementById('btnExportInterventi').addEventListener('click', exportInterventi);
 form.addEventListener('submit', handleSubmit);
 searchInput.addEventListener('input', handleSearch);
+
+// Applica filtri da URL (quando arrivi dalla dashboard)
+function applyUrlFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const sede = urlParams.get('sede');
+    const correttiva = urlParams.get('correttiva');
+    const manutenzione = urlParams.get('manutenzione');
+    
+    if (sede) {
+        // Filtra per sede
+        const filtered = cappe.filter(cappa => 
+            cappa.sede.toLowerCase() === sede.toLowerCase()
+        );
+        renderTable(filtered);
+        // NON popolare la search box, lasciala vuota per cercare altro
+        showNotification(`📍 Filtro attivo: ${filtered.length} cappe nella sede "${sede}"`, 'success');
+    } else if (correttiva) {
+        // Filtra per stato correttiva
+        const filtered = cappe.filter(cappa => 
+            cappa.stato_correttiva === correttiva
+        );
+        renderTable(filtered);
+        // NON popolare la search box
+        showNotification(`⚠️ Filtro attivo: ${filtered.length} cappe con stato "${correttiva}"`, 'success');
+    } else if (manutenzione) {
+        // Filtra per stato manutenzione
+        filterByManutenzione(manutenzione);
+    }
+}
+
+// Filtra per stato manutenzione
+function filterByManutenzione(stato) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    
+    const filtered = cappe.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) {
+            return stato === 'Non programmata';
+        }
+        
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
+        
+        if (stato === 'Scaduta') {
+            return dataProx < today;
+        } else if (stato === 'Prossima') {
+            return dataProx >= today && dataProx <= in30Days;
+        } else if (stato === 'OK') {
+            return dataProx > in30Days;
+        }
+        
+        return false;
+    });
+    
+    renderTable(filtered);
+    showNotification(`⚙️ Filtro applicato: ${filtered.length} cappe con manutenzione "${stato}"`, 'success');
+}
 
 // Chiudi modal cliccando fuori
 window.addEventListener('click', (e) => {
@@ -63,7 +129,7 @@ async function loadCappe() {
     try {
         const response = await fetch(API_URL);
         const data = await response.json();
-        cappe = data.data;
+        cappe = Array.isArray(data) ? data : [];
         renderTable(cappe);
         updateStats(cappe);
     } catch (error) {
@@ -72,15 +138,75 @@ async function loadCappe() {
     }
 }
 
+// Aggiorna statistiche con i dati filtrati
+function updateFilteredStats(data) {
+    // Totale cappe visibili
+    const totalCappe = data.length;
+    
+    // Calcola manutenzioni scadute
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scadute = data.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) return false;
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
+        return dataProx < today;
+    }).length;
+    
+    // Calcola manutenzioni prossime (30 giorni)
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    const prossime = data.filter(cappa => {
+        if (!cappa.data_prossima_manutenzione) return false;
+        const dataProx = new Date(cappa.data_prossima_manutenzione);
+        dataProx.setHours(0, 0, 0, 0);
+        return dataProx >= today && dataProx <= in30Days;
+    }).length;
+    
+    // Calcola cappe in correttiva
+    const inCorrettiva = data.filter(cappa => 
+        cappa.stato_correttiva === 'In Correttiva'
+    ).length;
+    
+    // Calcola cappe in attesa riparazione
+    const inAttesa = data.filter(cappa => 
+        cappa.stato_correttiva === 'In Attesa Riparazione'
+    ).length;
+    
+    // Aggiorna le card
+    const totalCard = document.getElementById('totalCappe');
+    const scaduteCard = document.getElementById('manutenzioniScadute');
+    const prossimeCard = document.getElementById('manutenzioniProssime');
+    const correttivaCard = document.getElementById('cappeInCorrettiva');
+    const attesaCard = document.getElementById('cappeInAttesa');
+    
+    if (totalCard) totalCard.textContent = totalCappe;
+    if (scaduteCard) scaduteCard.textContent = scadute;
+    if (prossimeCard) prossimeCard.textContent = prossime;
+    if (correttivaCard) correttivaCard.textContent = inCorrettiva;
+    if (attesaCard) attesaCard.textContent = inAttesa;
+}
+
 // Renderizza tabella
 function renderTable(data) {
+    // Salva le cappe filtrate per l'export
+    filteredCappe = data;
+    
+    // Aggiorna statistiche filtrate
+    updateFilteredStats(data);
+    
     if (data.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="11" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="12" class="no-data">Nessuna cappa trovata. Clicca su "Aggiungi Cappa" per iniziare.</td></tr>';
         return;
     }
 
     tableBody.innerHTML = data.map(cappa => {
         const manutenzioneStatus = getMaintenanceStatus(cappa.data_prossima_manutenzione);
+        
+        // Icona per stato correttiva
+        let statoIcon = '✅';
+        if (cappa.stato_correttiva === 'In Correttiva') statoIcon = '⚠️';
+        if (cappa.stato_correttiva === 'In Attesa Riparazione') statoIcon = '🔧';
         
         return `
             <tr>
@@ -92,12 +218,14 @@ function renderTable(data) {
                 <td>${cappa.sede}</td>
                 <td>${cappa.reparto}</td>
                 <td>${cappa.locale}</td>
+                <td title="${cappa.stato_correttiva || 'Operativa'}">${statoIcon}</td>
                 <td>${formatDate(cappa.data_manutenzione)}</td>
                 <td class="${manutenzioneStatus.class}">${formatDate(cappa.data_prossima_manutenzione)}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-edit" onclick="editCappa(${cappa.id})" title="Modifica">✏️</button>
                         <button class="btn btn-exploded" onclick="openEsploso(${cappa.id})" title="Esploso">🔧</button>
+                        <button class="btn btn-correttiva" onclick="openCorrettiva(${cappa.id})" title="Correttiva">🔧</button>
                         <button class="btn btn-delete" onclick="deleteCappa(${cappa.id}, '${cappa.matricola}')" title="Elimina">🗑️</button>
                     </div>
                 </td>
@@ -177,8 +305,7 @@ function openAddModal() {
 async function editCappa(id) {
     try {
         const response = await fetch(`${API_URL}/${id}`);
-        const result = await response.json();
-        const cappa = result.data;
+        const cappa = await response.json();
         
         editingId = id;
         formTitle.textContent = 'Modifica Cappa';
@@ -206,6 +333,7 @@ async function editCappa(id) {
         document.getElementById('sede').value = cappa.sede;
         document.getElementById('reparto').value = cappa.reparto;
         document.getElementById('locale').value = cappa.locale;
+        document.getElementById('statoCorrettiva').value = cappa.stato_correttiva || 'Operativa';
         document.getElementById('dataManutenzione').value = cappa.data_manutenzione || '';
         document.getElementById('dataProssimaManutenzione').value = cappa.data_prossima_manutenzione || '';
         
@@ -327,6 +455,7 @@ async function handleSubmit(e) {
         sede: document.getElementById('sede').value,
         reparto: document.getElementById('reparto').value,
         locale: document.getElementById('locale').value,
+        stato_correttiva: document.getElementById('statoCorrettiva').value,
         data_manutenzione: document.getElementById('dataManutenzione').value || null,
         data_prossima_manutenzione: document.getElementById('dataProssimaManutenzione').value || null
     };
@@ -396,7 +525,24 @@ async function deleteCappa(id, matricola) {
 function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
     
-    const filtered = cappe.filter(cappa => {
+    // Se c'è un filtro URL attivo (sede, correttiva, manutenzione), cerca dentro filteredCappe
+    // Altrimenti cerca in tutte le cappe
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlFilter = urlParams.get('sede') || urlParams.get('correttiva') || urlParams.get('manutenzione');
+    
+    const dataSource = (hasUrlFilter && filteredCappe.length > 0) ? filteredCappe : cappe;
+    
+    if (!searchTerm) {
+        // Se la ricerca è vuota, mostra il filtro URL o tutte le cappe
+        if (hasUrlFilter && filteredCappe.length > 0) {
+            renderTable(filteredCappe);
+        } else {
+            renderTable(cappe);
+        }
+        return;
+    }
+    
+    const filtered = dataSource.filter(cappa => {
         return cappa.inventario.toLowerCase().includes(searchTerm) ||
                cappa.matricola.toLowerCase().includes(searchTerm) ||
                cappa.modello.toLowerCase().includes(searchTerm) ||
@@ -411,9 +557,33 @@ function handleSearch(e) {
 }
 
 // Aggiorna dati
+// Aggiorna dati mantenendo i filtri
 function refreshData() {
     showNotification('Aggiornamento dati...', 'success');
-    loadCappe();
+    
+    // Salva il valore corrente della ricerca
+    const currentSearch = searchInput.value;
+    
+    // Salva i parametri URL (filtri dalla dashboard)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSedeFiltro = urlParams.get('sede');
+    const hasCorrettivaFiltro = urlParams.get('correttiva');
+    const hasManutenzione = urlParams.get('manutenzione');
+    
+    // Ricarica i dati
+    loadCappe().then(() => {
+        // Riapplica i filtri
+        if (hasSedeFiltro || hasCorrettivaFiltro || hasManutenzione) {
+            // Riapplica filtri da URL
+            applyUrlFilters();
+        } else if (currentSearch) {
+            // Riapplica ricerca manuale
+            searchInput.value = currentSearch;
+            handleSearch({ target: { value: currentSearch } });
+        }
+        
+        showNotification('Dati aggiornati! Filtro mantenuto.', 'success');
+    });
 }
 
 // Apri pagina esploso
@@ -421,10 +591,94 @@ function openEsploso(id) {
     window.open(`esploso.html?id=${id}`, '_blank', 'width=1200,height=800');
 }
 
+// Apri pagina correttiva
+function openCorrettiva(id) {
+    window.open(`correttiva-intervento.html?id=${id}`, '_blank', 'width=1400,height=900');
+}
+
 // Export Excel
-function exportExcel() {
-    window.open(`${API_URL}/export/excel`, '_blank');
-    showNotification('Download Excel avviato', 'success');
+// Export Excel (solo cappe filtrate)
+async function exportExcel() {
+    try {
+        // Usa le cappe filtrate o tutte se non c'è filtro
+        const dataToExport = filteredCappe.length > 0 ? filteredCappe : cappe;
+        
+        if (dataToExport.length === 0) {
+            showNotification('Nessuna cappa da esportare', 'warning');
+            return;
+        }
+        
+        // Prepara i dati per Excel
+        const excelData = dataToExport.map(cappa => ({
+            'Inventario': cappa.inventario,
+            'Tipologia': cappa.tipologia,
+            'Matricola': cappa.matricola,
+            'Produttore': cappa.produttore,
+            'Modello': cappa.modello,
+            'Sede': cappa.sede,
+            'Reparto': cappa.reparto,
+            'Locale': cappa.locale,
+            'Stato Correttiva': cappa.stato_correttiva || 'Operativa',
+            'Data Manutenzione': cappa.data_manutenzione || '',
+            'Data Prossima Manutenzione': cappa.data_prossima_manutenzione || ''
+        }));
+        
+        // Crea il workbook usando XLSX dalla CDN
+        const XLSX = window.XLSX;
+        if (!XLSX) {
+            // Carica XLSX se non è già caricato
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+            script.onload = () => exportExcelWithXLSX(excelData);
+            document.head.appendChild(script);
+        } else {
+            exportExcelWithXLSX(excelData);
+        }
+        
+    } catch (error) {
+        console.error('Errore export:', error);
+        showNotification('Errore durante l\'export', 'error');
+    }
+}
+
+function exportExcelWithXLSX(data) {
+    const XLSX = window.XLSX;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cappe');
+    
+    // Nome file con data e numero di cappe
+    const date = new Date().toISOString().split('T')[0];
+    const fileName = `cappe_export_${data.length}_${date}.xlsx`;
+    
+    XLSX.writeFile(wb, fileName);
+    showNotification(`Export completato: ${data.length} cappe esportate`, 'success');
+}
+
+// Export Interventi
+async function exportInterventi() {
+    try {
+        showNotification('Preparazione export interventi...', 'info');
+        
+        const response = await fetch(`${API_URL}/interventi/export`);
+        const blob = await response.blob();
+        
+        // Crea link per download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().split('T')[0];
+        a.download = `interventi_completi_${date}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showNotification('Export interventi completato!', 'success');
+    } catch (error) {
+        console.error('Errore export interventi:', error);
+        showNotification('Errore durante l\'export interventi', 'error');
+    }
 }
 
 // Mostra notifica
