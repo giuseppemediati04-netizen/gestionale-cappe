@@ -34,7 +34,7 @@ async function loadCappaData() {
     try {
         const response = await fetch(`${API_URL}/cappe/${cappaId}`);
         const result = await response.json();
-        const cappa = result.data;
+        const cappa = result;
         
         document.getElementById('ana-inventario').textContent = cappa.inventario;
         document.getElementById('ana-matricola').textContent = cappa.matricola || 'N/A';
