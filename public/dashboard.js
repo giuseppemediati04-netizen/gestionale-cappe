@@ -12,60 +12,162 @@ let charts = {
 // Carica dashboard al caricamento pagina
 document.addEventListener('DOMContentLoaded', loadDashboard);
 
-// Carica dati dashboard
+// Carica tutte le cappe e calcola stats + grafici lato client
 async function loadDashboard() {
     try {
-        console.log('Caricamento dashboard...');
+        console.log('Caricamento dashboard da /api/cappe...');
 
-        // Carica statistiche
-        const statsResponse = await fetch(`${API_URL}/dashboard/stats`);
-        console.log('Stats status:', statsResponse.status);
-        const statsData = await safeJson(statsResponse);
-        console.log('Stats raw:', statsData);
+        const response = await fetch(`${API_URL}/cappe`);
+        console.log('Cappe status:', response.status);
 
-        if (statsResponse.ok && statsData) {
-            const stats = statsData.data || statsData;
-            updateStats(stats || {});
-        } else {
-            console.warn('Stats non OK o vuote');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
 
-        // Carica dati grafici
-        const chartsResponse = await fetch(`${API_URL}/dashboard/charts`);
-        console.log('Charts status:', chartsResponse.status);
-        const chartsData = await safeJson(chartsResponse);
-        console.log('Charts raw:', chartsData);
+        const data = await response.json();
+        console.log('Cappe raw:', data);
 
-        if (chartsResponse.ok && chartsData) {
-            const chartsPayload = chartsData.data || chartsData;
-            updateCharts(chartsPayload || {});
-        } else {
-            console.warn('Charts non OK o vuote');
-        }
+        // Gestisce sia array diretto che { data: [...] }
+        const cappe = Array.isArray(data)
+            ? data
+            : (Array.isArray(data.data) ? data.data : []);
+
+        console.log('Cappe usate per dashboard:', cappe);
+
+        const stats = computeStats(cappe);
+        const chartsData = computeCharts(cappe);
+
+        updateStats(stats);
+        updateCharts(chartsData);
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('content').style.display = 'block';
 
     } catch (error) {
-        console.error('Errore caricamento dashboard (catch generale):', error);
+        console.error('Errore caricamento dashboard:', error);
         showNotification('Errore nel caricamento della dashboard', 'error');
         const loadingEl = document.getElementById('loading');
         if (loadingEl) loadingEl.textContent = 'Errore nel caricamento dei dati';
     }
 }
 
-// parsing JSON sicuro (non esplode se il body non è JSON valido)
-async function safeJson(response) {
-    try {
-        return await response.json();
-    } catch (e) {
-        console.warn('Risposta non in JSON valido:', e);
-        return null;
-    }
+/* ---------- LOGICA STATS & GRAFICI ---------- */
+
+// Calcola le statistiche per le card
+function computeStats(cappe) {
+    const totalCappe = cappe.length;
+
+    // Sedi attive (distinte, non vuote)
+    const sediSet = new Set(
+        cappe
+            .map(c => (c.sede || '').trim())
+            .filter(s => s !== '')
+    );
+    const sediAttive = sediSet.size;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+
+    let manutenzioniScadute = 0;
+    let manutenzioniProssime = 0;
+
+    cappe.forEach(cappa => {
+        if (!cappa.data_prossima_manutenzione) return;
+
+        const d = new Date(cappa.data_prossima_manutenzione);
+        d.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            manutenzioniScadute++;
+        } else if (diffDays <= 30) {
+            manutenzioniProssime++;
+        }
+    });
+
+    const cappeCorrettiva = cappe.filter(c =>
+        c.stato_correttiva === 'In Correttiva' ||
+        c.stato_correttiva === 'In Attesa Riparazione'
+    ).length;
+
+    return {
+        totalCappe,
+        sediAttive,
+        manutenzioniScadute,
+        manutenzioniProssime,
+        cappeCorrettiva
+    };
 }
 
-// Aggiorna statistiche
-function updateStats(stats = {}) {
+// Prepara i dataset per i grafici
+function computeCharts(cappe) {
+    const perSedeMap = {};
+    const correttivaMap = {
+        'Operativa': 0,
+        'In Correttiva': 0,
+        'In Attesa Riparazione': 0
+    };
+    const manutenzioniMap = {
+        'OK': 0,
+        'Prossima': 0,
+        'Scaduta': 0,
+        'Non programmata': 0
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+
+    cappe.forEach(cappa => {
+        // --- per Sede ---
+        const sede = (cappa.sede || 'Non definita').trim();
+        perSedeMap[sede] = (perSedeMap[sede] || 0) + 1;
+
+        // --- Stato Correttiva ---
+        const statoCorr = (cappa.stato_correttiva && cappa.stato_correttiva.trim()) || 'Operativa';
+        if (correttivaMap[statoCorr] === undefined) {
+            correttivaMap[statoCorr] = 0;
+        }
+        correttivaMap[statoCorr]++;
+
+        // --- Stato Manutenzioni ---
+        let statoMan;
+        if (!cappa.data_prossima_manutenzione) {
+            statoMan = 'Non programmata';
+        } else {
+            const d = new Date(cappa.data_prossima_manutenzione);
+            d.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                statoMan = 'Scaduta';
+            } else if (diffDays <= 30) {
+                statoMan = 'Prossima';
+            } else {
+                statoMan = 'OK';
+            }
+        }
+        manutenzioniMap[statoMan] = (manutenzioniMap[statoMan] || 0) + 1;
+    });
+
+    const perSede = Object.entries(perSedeMap).map(([sede, count]) => ({ sede, count }));
+    const statoCorrettiva = Object.entries(correttivaMap)
+        .filter(([, count]) => count > 0)
+        .map(([stato_correttiva, count]) => ({ stato_correttiva, count }));
+    const statoManutenzioni = Object.entries(manutenzioniMap)
+        .filter(([, count]) => count > 0)
+        .map(([stato, count]) => ({ stato, count }));
+
+    return { perSede, statoCorrettiva, statoManutenzioni };
+}
+
+/* ---------- FUNZIONI DI RENDER ---------- */
+
+// Aggiorna statistiche (card in alto)
+function updateStats(stats) {
     document.getElementById('stat-total').textContent = stats.totalCappe || 0;
     document.getElementById('stat-sedi').textContent = stats.sediAttive || 0;
     document.getElementById('stat-scadute').textContent = stats.manutenzioniScadute || 0;
@@ -74,24 +176,16 @@ function updateStats(stats = {}) {
 }
 
 // Aggiorna grafici
-function updateCharts(data = {}) {
-    // Assicuriamoci che le proprietà esistano come array
-    const perSede = Array.isArray(data.perSede) ? data.perSede : [];
-    const statoCorrettiva = Array.isArray(data.statoCorrettiva) ? data.statoCorrettiva : [];
-    const statoManutenzioni = Array.isArray(data.statoManutenzioni) ? data.statoManutenzioni : [];
-
-    // Grafico Cappe per Sede
-    const sedeData = prepareSedeData(perSede);
+function updateCharts(data) {
+    const sedeData = prepareSedeData(data.perSede || []);
     if (charts.sede) charts.sede.destroy();
     charts.sede = createPieChart('chartSede', sedeData);
 
-    // Grafico Stato Correttiva
-    const correttivaData = prepareCorrettivaData(statoCorrettiva);
+    const correttivaData = prepareCorrettivaData(data.statoCorrettiva || []);
     if (charts.correttiva) charts.correttiva.destroy();
     charts.correttiva = createPieChart('chartCorrettiva', correttivaData);
 
-    // Grafico Stato Manutenzioni
-    const manutenzioniData = prepareManutenzioniData(statoManutenzioni);
+    const manutenzioniData = prepareManutenzioniData(data.statoManutenzioni || []);
     if (charts.manutenzioni) charts.manutenzioni.destroy();
     charts.manutenzioni = createPieChart('chartManutenzioni', manutenzioniData);
 }
@@ -99,14 +193,14 @@ function updateCharts(data = {}) {
 // Prepara dati per grafico Sede
 function prepareSedeData(data) {
     const colors = [
-        '#667eea', '#764ba2', '#f093fb', '#4facfe', 
+        '#667eea', '#764ba2', '#f093fb', '#4facfe',
         '#43e97b', '#fa709a', '#fee140', '#30cfd0',
         '#a8edea', '#fed6e3', '#fbc2eb', '#a6c1ee'
     ];
-    
+
     const labels = data.map(item => item.sede);
     const values = data.map(item => item.count);
-    
+
     return {
         labels: labels,
         datasets: [{
@@ -123,23 +217,23 @@ function prepareCorrettivaData(data) {
         'In Correttiva': '#ffc107',
         'In Attesa Riparazione': '#dc3545'
     };
-    
+
     const iconMap = {
         'Operativa': '✅ ',
         'In Correttiva': '⚠️ ',
         'In Attesa Riparazione': '🔧 '
     };
-    
-    const validData = data.filter(item => 
+
+    const validData = data.filter(item =>
         item.stato_correttiva &&
         item.stato_correttiva.trim() !== '' &&
         colorMap[item.stato_correttiva]
     );
-    
+
     const labels = validData.map(item => iconMap[item.stato_correttiva] + item.stato_correttiva);
     const values = validData.map(item => item.count);
     const colors = validData.map(item => colorMap[item.stato_correttiva]);
-    
+
     return {
         labels: labels,
         datasets: [{
@@ -157,18 +251,18 @@ function prepareManutenzioniData(data) {
         'Scaduta': '#dc3545',
         'Non programmata': '#6c757d'
     };
-    
+
     const iconMap = {
         'OK': '✅ ',
         'Prossima': '⏰ ',
         'Scaduta': '❌ ',
         'Non programmata': '⚪ '
     };
-    
+
     const labels = data.map(item => iconMap[item.stato] + item.stato);
     const values = data.map(item => item.count);
     const colors = data.map(item => colorMap[item.stato]);
-    
+
     return {
         labels: labels,
         datasets: [{
@@ -187,7 +281,7 @@ function createPieChart(canvasId, data) {
     }
 
     const ctx = canvas.getContext('2d');
-    
+
     return new Chart(ctx, {
         type: 'pie',
         data: data,
@@ -206,11 +300,11 @@ function createPieChart(canvasId, data) {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            let value = context.parsed || 0;
-                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            let percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                        label: function (context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                             return `${label}: ${value} (${percentage}%)`;
                         }
                     }
@@ -227,15 +321,13 @@ function createPieChart(canvasId, data) {
     });
 }
 
-// Gestisce click sui grafici
+// Gestisce click sui grafici (filtra lista cappe)
 function handleChartClick(chartId, label) {
-    // Rimuovi emoji e spazi extra dal label
     const cleanLabel = label.replace(/[✅⚠️🔧❌⏰⚪]/g, '').trim();
-    
-    // Costruisci URL con parametro di filtro
+
     let filterParam = '';
-    
-    switch(chartId) {
+
+    switch (chartId) {
         case 'chartSede':
             filterParam = `sede=${encodeURIComponent(cleanLabel)}`;
             break;
@@ -246,8 +338,7 @@ function handleChartClick(chartId, label) {
             filterParam = `manutenzione=${encodeURIComponent(cleanLabel)}`;
             break;
     }
-    
-    // Vai alla pagina cappe con filtro
+
     window.location.href = `cappe.html?${filterParam}`;
 }
 
@@ -258,7 +349,7 @@ function showNotification(message, type = 'success') {
     notification.textContent = message;
     notification.className = `notification ${type}`;
     notification.style.display = 'block';
-    
+
     setTimeout(() => {
         notification.style.display = 'none';
     }, 3000);
