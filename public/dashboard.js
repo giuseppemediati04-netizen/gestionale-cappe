@@ -20,7 +20,8 @@ async function loadDashboard() {
         const statsData = await statsResponse.json();
         
         if (statsResponse.ok) {
-            updateStats(statsData.data);
+            const stats = statsData.data || statsData;
+            updateStats(stats);
         }
         
         // Carica dati grafici
@@ -28,7 +29,8 @@ async function loadDashboard() {
         const chartsData = await chartsResponse.json();
         
         if (chartsResponse.ok) {
-            updateCharts(chartsData.data);
+            const chartsPayload = chartsData.data || chartsData;
+            updateCharts(chartsPayload);
         }
         
         document.getElementById('loading').style.display = 'none';
@@ -53,21 +55,21 @@ function updateStats(stats) {
 // Aggiorna grafici
 function updateCharts(data) {
     // Grafico Cappe per Sede
-    const sedeData = prepareSedeData(data.perSede);
+    const sedeData = prepareSedeData(data.perSede || []);
     if (charts.sede) {
         charts.sede.destroy();
     }
     charts.sede = createPieChart('chartSede', sedeData);
     
     // Grafico Stato Correttiva
-    const correttivaData = prepareCorrettivaData(data.statoCorrettiva);
+    const correttivaData = prepareCorrettivaData(data.statoCorrettiva || []);
     if (charts.correttiva) {
         charts.correttiva.destroy();
     }
     charts.correttiva = createPieChart('chartCorrettiva', correttivaData);
     
     // Grafico Stato Manutenzioni
-    const manutenzioniData = prepareManutenzioniData(data.statoManutenzioni);
+    const manutenzioniData = prepareManutenzioniData(data.statoManutenzioni || []);
     if (charts.manutenzioni) {
         charts.manutenzioni.destroy();
     }
