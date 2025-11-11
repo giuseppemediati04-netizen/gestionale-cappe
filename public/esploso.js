@@ -37,24 +37,24 @@ async function loadCappaData() {
         if (!cappaResponse.ok) throw new Error('Cappa non trovata');
         
         const cappaData = await cappaResponse.json();
-        const cappa = cappaData.data;
+        const cappa = cappaData.data || cappaData;
         
         // Popola anagrafica
-        document.getElementById('ana-inventario').textContent = cappa.inventario;
-        document.getElementById('ana-tipologia').textContent = cappa.tipologia;
-        document.getElementById('ana-matricola').textContent = cappa.matricola;
-        document.getElementById('ana-produttore').textContent = cappa.produttore;
-        document.getElementById('ana-modello').textContent = cappa.modello;
-        document.getElementById('ana-sede').textContent = cappa.sede;
-        document.getElementById('ana-reparto').textContent = cappa.reparto;
-        document.getElementById('ana-locale').textContent = cappa.locale;
+        document.getElementById('ana-inventario').textContent = cappa.inventario || '';
+        document.getElementById('ana-tipologia').textContent = cappa.tipologia || '';
+        document.getElementById('ana-matricola').textContent = cappa.matricola || '';
+        document.getElementById('ana-produttore').textContent = cappa.produttore || '';
+        document.getElementById('ana-modello').textContent = cappa.modello || '';
+        document.getElementById('ana-sede').textContent = cappa.sede || '';
+        document.getElementById('ana-reparto').textContent = cappa.reparto || '';
+        document.getElementById('ana-locale').textContent = cappa.locale || '';
         
         // Carica dati esploso se esistono
         try {
             const esplosoResponse = await fetch(`${API_URL}/esploso/${cappaId}`);
             if (esplosoResponse.ok) {
                 const esplosoData = await esplosoResponse.json();
-                const esploso = esplosoData.data;
+                const esploso = esplosoData.data || esplosoData;
                 
                 document.getElementById('datiTarga').value = esploso.dati_targa || '';
                 document.getElementById('datiMotore').value = esploso.dati_motore || '';
@@ -65,11 +65,11 @@ async function loadCappaData() {
                 document.getElementById('oreLavoroFiltri').value = esploso.ore_lavoro_filtri || 0;
                 document.getElementById('altriDati').value = esploso.altri_dati || '';
                 
-                // Carica foto esistenti (se implementato)
-                // TODO: implementare caricamento foto salvate
+                // TODO: implementare caricamento foto salvate se presenti a DB
             }
         } catch (e) {
-            // Nessun dato esploso esistente, va bene
+            // Nessun dato esploso esistente, va bene così
+            console.warn('Nessun dato esploso esistente o errore nel caricamento:', e);
         }
         
         document.getElementById('loading').style.display = 'none';
@@ -89,6 +89,8 @@ function setupPhotoHandlers() {
         const input = document.getElementById(inputId);
         const preview = document.getElementById(`preview-${inputId}`);
         
+        if (!input || !preview) return;
+        
         input.addEventListener('change', (e) => {
             handlePhotoUpload(e, inputId, preview);
         });
@@ -97,7 +99,7 @@ function setupPhotoHandlers() {
 
 // Gestisci upload foto
 function handlePhotoUpload(event, inputId, previewContainer) {
-    const files = Array.from(event.target.files);
+    const files = Array.from(event.target.files || []);
     
     files.forEach(file => {
         if (file.type.startsWith('image/')) {
@@ -166,6 +168,7 @@ document.getElementById('esplosoForm').addEventListener('submit', async (e) => {
 // Mostra notifica
 function showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
+    if (!notification) return;
     notification.textContent = message;
     notification.className = `notification ${type}`;
     notification.style.display = 'block';
