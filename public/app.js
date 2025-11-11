@@ -129,7 +129,7 @@ async function loadCappe() {
     try {
         const response = await fetch(API_URL);
         const data = await response.json();
-        cappe = data.data;
+        cappe = Array.isArray(data) ? data : [];
         renderTable(cappe);
         updateStats(cappe);
     } catch (error) {
@@ -305,8 +305,7 @@ function openAddModal() {
 async function editCappa(id) {
     try {
         const response = await fetch(`${API_URL}/${id}`);
-        const result = await response.json();
-        const cappa = result.data;
+        const cappa = await response.json();
         
         editingId = id;
         formTitle.textContent = 'Modifica Cappa';
