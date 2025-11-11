@@ -33,17 +33,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadCappaData() {
     try {
         const response = await fetch(`${API_URL}/cappe/${cappaId}`);
+        if (!response.ok) throw new Error('Cappa non trovata');
+
         const result = await response.json();
-        const cappa = result;
+        const cappa = result.data || result;
         
-        document.getElementById('ana-inventario').textContent = cappa.inventario;
+        document.getElementById('ana-inventario').textContent = cappa.inventario || '';
         document.getElementById('ana-matricola').textContent = cappa.matricola || 'N/A';
-        document.getElementById('ana-tipologia').textContent = cappa.tipologia;
-        document.getElementById('ana-produttore').textContent = cappa.produttore;
-        document.getElementById('ana-modello').textContent = cappa.modello;
-        document.getElementById('ana-sede').textContent = cappa.sede;
-        document.getElementById('ana-reparto').textContent = cappa.reparto;
-        document.getElementById('ana-locale').textContent = cappa.locale;
+        document.getElementById('ana-tipologia').textContent = cappa.tipologia || '';
+        document.getElementById('ana-produttore').textContent = cappa.produttore || '';
+        document.getElementById('ana-modello').textContent = cappa.modello || '';
+        document.getElementById('ana-sede').textContent = cappa.sede || '';
+        document.getElementById('ana-reparto').textContent = cappa.reparto || '';
+        document.getElementById('ana-locale').textContent = cappa.locale || '';
         
         // Genera numero ticket
         const ticket = `CORR-${cappa.inventario}-${Date.now().toString().slice(-6)}`;
@@ -62,8 +64,11 @@ async function loadCappaData() {
 async function loadStorico() {
     try {
         const response = await fetch(`${API_URL}/interventi/cappa/${cappaId}`);
+        if (!response.ok) throw new Error('Errore caricamento storico');
+
         const result = await response.json();
-        const interventi = result.data;
+        // gestisce sia { data: [...] } che array diretto
+        const interventi = Array.isArray(result) ? result : (result.data || []);
         
         const count = interventi.length;
         document.getElementById('storico-count').textContent = count;
@@ -80,7 +85,9 @@ async function loadStorico() {
             const cardClass = stato === 'Sospeso' ? 'sospeso' : (stato === 'In Attesa' ? 'attesa' : '');
             const statoIcon = stato === 'Chiuso' ? '✅' : (stato === 'Sospeso' ? '⏸️' : '🔧');
             
-            const dataRichiesta = new Date(int.data_richiesta).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+            const dataRichiesta = int.data_richiesta
+                ? new Date(int.data_richiesta).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '-';
             const problema = int.problema_riscontrato || 'Nessun problema specificato';
             const note = int.attivita_svolte || int.nota_finali || 'Nessuna nota';
             const tecnico = int.tecnici || int.tecnico_diagnostico || 'Non specificato';
@@ -233,7 +240,7 @@ function calcolaTotaleRicambi() {
 
 // Gestione foto
 function handlePhotoUpload(event, tipo) {
-    const files = Array.from(event.target.files);
+    const files = Array.from(event.target.files || []);
     const previewContainer = document.getElementById(`preview-${tipo}`);
     
     files.forEach(file => {
@@ -371,7 +378,7 @@ async function salvaConStato(statoIntervento, statoCorrettivaCappa, messaggio) {
             }, 1500);
         } else {
             const error = await response.json();
-            showNotification('Errore: ' + error.error, 'error');
+            showNotification('Errore: ' + (error.error || 'Errore sconosciuto'), 'error');
         }
     } catch (error) {
         showNotification('Errore di connessione', 'error');
